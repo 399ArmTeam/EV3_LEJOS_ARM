@@ -19,8 +19,8 @@ public class JointTest {
 	public static void main(String[] args) {
 		Move.getInstance();			// Instantiate Move singleton
 		del_q.set(0, 0, Math.PI/2);	// theta 1 for J1
-		del_q.set(1, 0, Math.PI/6);	// theta 2 for J2
-		del_q.set(2, 0, Math.PI/12);	// theta 3 for J3
+		del_q.set(1, 0, Math.PI/8);	// theta 2 for J2
+		del_q.set(2, 0, Math.PI/16);	// theta 3 for J3
 			
 		while(true) {
 			switch(Button.waitForAnyPress()) {
