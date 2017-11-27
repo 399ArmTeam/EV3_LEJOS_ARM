@@ -16,7 +16,7 @@ public class PIDController implements Runnable{
 	private final double[] K;			// the K gain values in an array [p, i, d]
 	private final int sampleRate = 10;	// enforced minimum sample rate, 
 	private final int sp;				// set point: the target to move to 
-	private final int pm;				// the power maximum 0 ≤ pm ≤100
+	private final int pm;				// the power maximum 0 <= pm <= 100
 	private final int to;				// the timeout value in milliseconds
 	private double integral;				// the integral error
 	private double derivative;			// the derivative error
@@ -48,6 +48,9 @@ public class PIDController implements Runnable{
 	
 	/**
 	 * Run the PID controller with its initialized parameters.
+	 * If the motion is not completed before timeout the EV3 will buzz.
+	 * If the motion ends and there was a residual the EV3 will sound a decending sequence of tones.
+	 * If either of these cases are occurring frequently please retune the controller paramaters.
 	 */
 	public void run() {
 		error = sp;			// error
