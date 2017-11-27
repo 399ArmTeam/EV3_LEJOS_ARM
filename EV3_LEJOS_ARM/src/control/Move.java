@@ -5,7 +5,7 @@ import lejos.hardware.port.MotorPort;
 import lejos.utility.Matrix;
 
 /**
- * A move controller singleton class.
+ * Move controller singleton class.
  * Uses PIDController threads to move three servo motors.
  * @author nicholasmayne
  *

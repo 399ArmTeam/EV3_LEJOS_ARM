@@ -6,7 +6,7 @@ import lejos.hardware.motor.UnregulatedMotor;
 import lejos.utility.Stopwatch;
 
 /**
- * A PID Controller thread class for controlling LEGO UnregulatedMotors.
+ * PID Controller thread class for controlling LEGO UnregulatedMotors.
  * @author nicholasmayne
  *
  */
