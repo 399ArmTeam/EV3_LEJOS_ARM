@@ -3,3 +3,4 @@ Codebase for our LEGO EV3 Brick
 
 ## Group Members:
 ### Nicholas Mayne
+### Christopher Hegberg
