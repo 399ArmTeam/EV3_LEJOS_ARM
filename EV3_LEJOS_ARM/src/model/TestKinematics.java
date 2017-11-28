@@ -16,7 +16,8 @@ public class TestKinematics {
 	public static TrackerReader tracker;
 	public static boolean stopThread = false;
 	
-	public static UnregulatedMotor base = new UnregulatedMotor(MotorPort.B); //The base joint
+	public static UnregulatedMotor base = new UnregulatedMotor(MotorPort.A);
+	public static UnregulatedMotor shoulder = new UnregulatedMotor(MotorPort.B); //The base joint
 	public static UnregulatedMotor elbow = new UnregulatedMotor(MotorPort.C);//elbow joint
 
 	public static void main(String args[]){
@@ -35,7 +36,7 @@ public class TestKinematics {
 		//UnregulatedMotor base = new UnregulatedMotor(MotorPort.B); //The base joint
 		//UnregulatedMotor elbow = new UnregulatedMotor(MotorPort.C);//elbow joint
 		
-		base.resetTachoCount();
+		shoulder.resetTachoCount();
 		elbow.resetTachoCount();
 		
 		//double	l1 = 6.5f,					//base length in cm
@@ -69,12 +70,12 @@ public class TestKinematics {
         double beforeX = tracker.getCurrentXY()[0];
         double beforeY = tracker.getCurrentXY()[1];
         stopThread = true;
-        cangles = move(45, 0, 0, 0,0,0,base,elbow);
+        cangles = move(45, 0, 0, 0,0,0,shoulder,elbow);
         new Thread(r).start();
         //Jacob[0][0]= (tracker.x - oldx)/Math.toRadians(cangles[0]);
         //Jacob[1][0]= (tracker.y - oldy)/Math.toRadians(cangles[0]);
         Delay.msDelay(1000);
-        System.out.println(cangles[0] + " base " + tracker.x + " old: " +oldx);
+        System.out.println(cangles[0] + " shoulder " + tracker.x + " old: " +oldx);
         System.out.println( tracker.y + " old: " +oldy);
         //Button.waitForAnyPress();
         Jacob[0][0]= (tracker.x - beforeX)/Math.toRadians(cangles[0]);
@@ -83,7 +84,7 @@ public class TestKinematics {
         oldx = tracker.x;
         oldy = tracker.y;
         stopThread = true;
-        cangles= move(cangles[0], 45,cangles[0], 0,0,0,base,elbow);
+        cangles= move(cangles[0], 45,cangles[0], 0,0,0,shoulder,elbow);
         new Thread(r).start();
         Delay.msDelay(1000); //100ms delay
         System.out.println(cangles[1] + " elbow " + tracker.x + " old: " +oldx);
@@ -190,7 +191,7 @@ public class TestKinematics {
 		    //Button.waitForAnyPress();
 		   // System.out.println("before move");
 		    stopThread = true;
-		    move((int)(Math.toDegrees(mdQ.get(0,0))), (int)(Math.toDegrees(mdQ.get(1,0))), (int)Math.toDegrees(oldQ.get(0,0)), (int)Math.toDegrees(oldQ.get(1,0)),0,0,base,elbow);
+		    move((int)(Math.toDegrees(mdQ.get(0,0))), (int)(Math.toDegrees(mdQ.get(1,0))), (int)Math.toDegrees(oldQ.get(0,0)), (int)Math.toDegrees(oldQ.get(1,0)),0,0,shoulder,elbow);
 		    new Thread(r).start();
 		    //Button.waitForAnyPress();
 		   // System.out.println("after move");
@@ -325,66 +326,32 @@ public class TestKinematics {
 	
 	public static void balance() {
 		base.resetTachoCount();
+		shoulder.resetTachoCount();
 		elbow.resetTachoCount();
 		
 		base.forward();
+		shoulder.forward();
 		elbow.forward();
+		
+		int powerMultiplier = -7;
 		
 		while (!stopThread) {
 			
-			//This works for just specifically holding a certian angle and not letting it move
-			/*
-			if (base.getTachoCount() > 1) {
-				base.setPower(-20);
-			} else if (base.getTachoCount() < -1) {
-				base.setPower(50);
-			} else {
-				base.setPower(5);
-			}
-			if (elbow.getTachoCount() > 1) {
-				elbow.setPower(-20);
-			} else if (elbow.getTachoCount() < -1) {
-				elbow.setPower(50);
-			} else {
-				elbow.setPower(5);
-			}
-			*/
-			
-			//this just counteracts basic gravity
-			/*
-			base.setPower(5);
-			elbow.setPower(5);
-			*/
-			
-			//like this the best, less figity than first and holds both sides unlike the second
-			//holds basic angle both directions
-			
-			if (base.getTachoCount() > 1) {
-				base.setPower(-5);
-			} else if (base.getTachoCount() < -1) {
-				base.setPower(5);
-			} else {
-				base.setPower(5);
-			}
-			if (elbow.getTachoCount() > 1) {
-				elbow.setPower(-5);
-			} else if (elbow.getTachoCount() < -1) {
-				elbow.setPower(5);
-			} else {
-				elbow.setPower(5);
-			}
-			
-			
-			//should be smoother this way, just spazzes out though, fixed it im an idiot
-			
+			//smoother more spring like, 7 is a good number, joints start to overcompinsate if higher and won't fully return if lower
 			if (base.getTachoCount() != 0) {
-				base.setPower(base.getTachoCount() * -4);
+				base.setPower(base.getTachoCount() * powerMultiplier);
 			} else {
 				base.setPower(5);
+			}
+			
+			if (shoulder.getTachoCount() != 0) {
+				shoulder.setPower(shoulder.getTachoCount() * powerMultiplier);
+			} else {
+				shoulder.setPower(5);
 			}
 			
 			if (elbow.getTachoCount() != 0) {
-				elbow.setPower(elbow.getTachoCount() * -4);
+				elbow.setPower(elbow.getTachoCount() * powerMultiplier);
 			} else {
 				elbow.setPower(5);
 			}
