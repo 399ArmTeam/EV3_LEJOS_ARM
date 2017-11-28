@@ -89,4 +89,9 @@ public class TrackerReader extends Thread
             System.err.println("Unable to close. IOexception");
         }
     }
+    
+    public double[] getCurrentXY() {
+    	double[] xy = {targetx, targety};
+    	return xy;
+    }
 }

@@ -4,5 +4,6 @@
 	<classpathentry kind="con" path="org.lejos.ev3.ldt.LEJOS_EV3_LIBRARY_CONTAINER"/>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="lib" path="json-simple-1.1.1.jar"/>
+	<classpathentry kind="lib" path="D:/Eclipse/eclipse/robot arm/EV3_LEJOS_ARM/EV3_LEJOS_ARM/Jama-1.0.3.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
