@@ -358,6 +358,7 @@ public class TestKinematics {
 			
 			//like this the best, less figity than first and holds both sides unlike the second
 			//holds basic angle both directions
+			
 			if (base.getTachoCount() > 1) {
 				base.setPower(-5);
 			} else if (base.getTachoCount() < -1) {
@@ -372,6 +373,22 @@ public class TestKinematics {
 			} else {
 				elbow.setPower(5);
 			}
+			
+			
+			//should be smoother this way, just spazzes out though, fixed it im an idiot
+			
+			if (base.getTachoCount() != 0) {
+				base.setPower(base.getTachoCount() * -4);
+			} else {
+				base.setPower(5);
+			}
+			
+			if (elbow.getTachoCount() != 0) {
+				elbow.setPower(elbow.getTachoCount() * -4);
+			} else {
+				elbow.setPower(5);
+			}
+			
 			
 		}
 		stopThread = false;
