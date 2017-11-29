@@ -7,7 +7,7 @@ import lejos.utility.Stopwatch;
 
 /**
  * PID Controller thread class for controlling LEGO UnregulatedMotors.
- * @author nicholasmayne
+ * @author laurapetrich, nicholasmayne
  *
  */
 public class PIDController implements Runnable{
