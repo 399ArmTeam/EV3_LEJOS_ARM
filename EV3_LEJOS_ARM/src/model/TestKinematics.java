@@ -1,337 +1,335 @@
 package model;
 
+import control.PIDController;
 import lejos.hardware.Button;
-import lejos.hardware.port.MotorPort;
-import lejos.hardware.port.SensorPort;
-import lejos.hardware.sensor.EV3ColorSensor;
-import lejos.hardware.sensor.NXTLightSensor;
-import lejos.robotics.SampleProvider;
-import lejos.utility.Delay;
-import vision.TrackerReader;
+import lejos.hardware.Sound;
 import lejos.hardware.motor.UnregulatedMotor;
-import Jama.Matrix;
+import lejos.hardware.port.MotorPort;
+import lejos.utility.Delay;
+import lejos.utility.Matrix;
+import vision.TrackerReader;
 
 
 public class TestKinematics {
-	public static TrackerReader tracker;
+	//public static TrackerReader tracker;
 	public static boolean stopThread = false;
 	
 	public static UnregulatedMotor base = new UnregulatedMotor(MotorPort.A);
 	public static UnregulatedMotor shoulder = new UnregulatedMotor(MotorPort.B); //The base joint
 	public static UnregulatedMotor elbow = new UnregulatedMotor(MotorPort.C);//elbow joint
+	
+	// JOINT MOTORS
+	private static UnregulatedMotor[] MOTOR;
+	
+	// PID CONTROLLER
+	private static final double[][] K = {{6, 0, 1}, {5, 0, 1}};	// K gain terms for PID control of motors at joints 1 and 2
+	private static final int P[] = {40, 40};						// power maximum for PID control 0 ≤ p ≤ 100
+	private static final int TIMEOUT = 3000;						// kill PID if SP not reached within this many milliseconds
+	
+	// CV TRACKER READER
+	private static TrackerReader tracker;
+	private static TrackerReader tracker2;
+
+	// DATA MATRICES
+	private static Matrix del_e = new Matrix(2,1);		
+	private static Matrix del_q = new Matrix(2,1);
+	private static Matrix J = new Matrix(2,2);	
+	
+	public static Runnable balanceAllThread = new Runnable() {
+        public void run() {
+            balance();
+        }
+    };
+    
+    public static Runnable balanceBaseThread = new Runnable() {
+        public void run() {
+            balanceBase();
+        }
+    };
+    
+    public static Runnable balanceShoulderThread = new Runnable() {
+        public void run() {
+            balanceShoulder();
+        }
+    };
+    
+    public static Runnable balanceElbowThread = new Runnable() {
+        public void run() {
+            balanceElbow();
+        }
+    };
 
 	public static void main(String args[]){
 		
 		//start self balancing thread
-		Runnable r = new Runnable() {
-	         public void run() {
-	             balance();
-	         }
-	    };
-
-	    new Thread(r).start();
+	    new Thread(balanceAllThread).start();
 		
 		tracker = new TrackerReader();
 		tracker.start();
-		//UnregulatedMotor base = new UnregulatedMotor(MotorPort.B); //The base joint
-		//UnregulatedMotor elbow = new UnregulatedMotor(MotorPort.C);//elbow joint
 		
-		shoulder.resetTachoCount();
-		elbow.resetTachoCount();
-		
-		//double	l1 = 6.5f,					//base length in cm
-		//        l2 = 8.0f;					//elbow length in cm
+		tracker2 = new TrackerReader();							// visual servoing tracker client
+        //tracker2.start();
 
-		double x = 0f;						//target x
-        double y = 14f;					//target y should be written as -y
+		/**
+		 * UVS Code for L3 a 2DOF SCARA Arm
+		 * @author laurapetrich, nicholasmayne
+		 *
+		 */
 
+		/**
+		 * Uncalibrated visual servoing using orthogonal motions and Broyden's Method Jacobian update.
+		 * @param args
+		 */
+		// Setup joint motors and visual tracking
+		MOTOR = new UnregulatedMotor[3];
+		MOTOR[0] = base;			// Joint 1
+		MOTOR[1] = shoulder;			// Joint 2
+		MOTOR[2] = elbow;			// Joint 2
+        
+		// Instantiate del_q with radian angles for deriving initial Jacobian
+        del_q.set(0, 0, Math.PI / 2);
+        del_q.set(1, 0, Math.PI / 2);
 
-        int t1 = 10; 					//current angle of base joint
-        int t2 = 10;
-        //int oldt1=base.getTachoCount();
-        //int oldt2=base.getTachoCount();
-        double rt1 = Math.toRadians(t1);
-        double rt2 = Math.toRadians(t2);
-
-        double x1;
-        double y1;
-        double[][] Jacob = new double[2][2];
-        double[][] rt = new double [2][1];
-        double tolerance = 10000;
-        while(tracker.x == 0 && tracker.y == 0) {
-    		//wait for click
-    	}
-        double oldx = tracker.x;
-        double oldy = tracker.y;
-        //oldx = tracker.x;
-        //oldy = tracker.y;
-        Delay.msDelay(300);
-        int[] cangles = new int[2]; 
-        double beforeX = tracker.getCurrentXY()[0];
-        double beforeY = tracker.getCurrentXY()[1];
-        stopThread = true;
-        cangles = move(45, 0, 0, 0,0,0,shoulder,elbow);
-        new Thread(r).start();
-        //Jacob[0][0]= (tracker.x - oldx)/Math.toRadians(cangles[0]);
-        //Jacob[1][0]= (tracker.y - oldy)/Math.toRadians(cangles[0]);
+        // Wait for tracker to be selected, then grab it's values to get the initial position
         Delay.msDelay(1000);
-        System.out.println(cangles[0] + " shoulder " + tracker.x + " old: " +oldx);
-        System.out.println( tracker.y + " old: " +oldy);
-        //Button.waitForAnyPress();
-        Jacob[0][0]= (tracker.x - beforeX)/Math.toRadians(cangles[0]);
-        Jacob[1][0]= (tracker.y - beforeY)/Math.toRadians(cangles[0]);
-        Delay.msDelay(1000);
-        oldx = tracker.x;
-        oldy = tracker.y;
-        stopThread = true;
-        cangles= move(cangles[0], 45,cangles[0], 0,0,0,shoulder,elbow);
-        new Thread(r).start();
-        Delay.msDelay(1000); //100ms delay
-        System.out.println(cangles[1] + " elbow " + tracker.x + " old: " +oldx);
-        System.out.println( tracker.y + " old: " +oldy);
-        //Button.waitForAnyPress();
-        Jacob[0][1]= (tracker.x - oldx)/Math.toRadians(cangles[1]);
-        Jacob[1][1]= (tracker.y - oldy)/Math.toRadians(cangles[1]);
-        
-
-        /** */
-        Matrix Jk1 = new Matrix(Jacob);		//J0
-        //Jk1 = Jk1.transpose();
-        double[][] dte = {{1},{1}};
-        Matrix mdE = new Matrix(dte);
-        double[][] dtq = {{Math.toRadians(45)},{Math.toRadians(45)}};
-        Matrix mdQ = new Matrix(dtq);
-        double alpha = 0.1;
-       // double mousex = 0;
-       // double mousey = 0;
-       System.out.println(Math.round(Jk1.get(0,0)) + "  " + Math.round(Jk1.get(0,1)) + " \n" + Math.round(Jk1.get(1,0)) + " " +Math.round(Jk1.get(1,1)) + " \n");
-        //int count = 0;v
-       //Button.waitForAnyPress();
-        
-        double[][] s = {{0},{0}};
-        Matrix mS = new Matrix(s);
-        
-        double[][] yChange = {{0},{0}};
-        Matrix yMChange = new Matrix(yChange);
-        
-        Matrix oldQ = new Matrix(dtq);
-        
-        oldx = 0;
-        oldy = 0;
-        
-        oldx = tracker.x;
-        oldy = tracker.y;
-        
+		System.out.println("\n\n1) SELECT TRACKER\n2) PRESS A BUTTON");
+		Sound.beep();
         Button.waitForAnyPress();
+
+        // Get del_e from tracker by recording the starting coordinates of tracker and then moving
+        // each motor by del_q and taking the difference wrt the new tracker position
+		del_e = getTrackerData();
+       			
+        // MOVE J1
+		moveJ1();
+        del_e = getTrackerData().minus(del_e);
         
-        while (true) {
-            /*
-        	while(tracker.targetx < 0 && tracker.targety < 0) {
-        		//wait for click
-        		oldx = tracker.x;
-                oldy = tracker.y;
-        	}*/
-        	
-        	
-            try {
-                Thread.sleep(1000);         //1000 milliseconds is one second.
-            } catch(InterruptedException ex) {
-                Thread.currentThread().interrupt();
-            }
-            
-            //Button.waitForAnyPress();
-            
-            //System.out.println(mdQ.transpose().times(mdQ));
-            /*
-            dtq[0][0] = base.getTachoCount();
-	        dtq[1][0] = elbow.getTachoCount();
-		    if(dtq[0][0] == 0){
-		    	dtq[0][0]=1;
-		    }tracker.movex - tracker.x
-		    if(dtq[1][0] == 0){
-		    	dtq[1][0]=1;
-		    }
-		    mdQ = new Matrix(dtq);
-		    */
-		    double[][] from = {{tracker.x},{tracker.y}};
-		    double[][] to = {{tracker.targetx},{ tracker.targety}};
-		    Matrix f = new Matrix(from);
-		    Matrix t = new Matrix(to);
-		    dte[0][0] = tracker.targetx - oldx; //yold[0] = tracker.x
-	        dte[1][0] = tracker.targety - oldy; //yold[1] = tracker.y
-		    if(dte[0][0] == 0){
-		    	dte[0][0]=1;
-		    }
-		    if(dte[1][0] == 0){
-		    	dte[1][0]=1;
-		    }
-		    mdE =t.plus(f); //pos - yold
-		    //System.out.println("MDE: " +mdE.get(0, 0) + " \n" + mdE.get(1, 0));
-		    System.out.println("xm,ym: " +tracker.targetx + " \n" + tracker.targety);
-		    //Button.waitForAnyPress();
-		    System.out.println("x,y: " +tracker.x + " \n" + tracker.y);
-		    //Button.waitForAnyPress();
-		    System.out.println("mde:  "+(mdE.get(0,0)) + ", " + (mdE.get(1,0)) );
-		    //Button.waitForAnyPress();
-		    Matrix jI = Jk1.inverse();
-		    System.out.println((jI.get(0,0)) + "\n" + (jI.get(0,1)) + " \n" );
-		    //Button.waitForAnyPress();
-		    System.out.println( (jI.get(1,0)) + "\n" +(jI.get(1,1))+ " \n");
-		    //Button.waitForAnyPress();
-		    mS = (jI).times(mdE); //s
-		    System.out.println("MS: " +mS.get(0, 0) + " \n" + mS.get(1, 0));
-		    //Button.waitForAnyPress();
-		    System.out.println("mdQ: " +mdQ.get(0, 0) + " \n" + mdQ.get(1, 0));
-		   
-		    oldQ = mdQ;
-		    //Button.waitForAnyPress();
-		    //mdQ = oldQ.plus(mS); //theta
-		    mdQ = oldQ.minus(mS); //theta, need to mijnus because tracker returns negative angle for some reason now but it works so whatever
-		    System.out.println("mdQ: " +mdQ.get(0, 0) + " \n" + mdQ.get(1, 0));
-		    //Button.waitForAnyPress();
-		   // System.out.println("before move");
-		    stopThread = true;
-		    move((int)(Math.toDegrees(mdQ.get(0,0))), (int)(Math.toDegrees(mdQ.get(1,0))), (int)Math.toDegrees(oldQ.get(0,0)), (int)Math.toDegrees(oldQ.get(1,0)),0,0,shoulder,elbow);
-		    new Thread(r).start();
-		    //Button.waitForAnyPress();
-		   // System.out.println("after move");
-		    Delay.msDelay(1000);
-		    yChange[0][0] = tracker.x - oldx;		//new pos - old pos //ynew - yold
-		    yChange[1][0] = tracker.y - oldy;
-		    
-		    yMChange = new Matrix(yChange);
-            oldx = tracker.x;
-            oldy = tracker.y; 
-            //Button.waitForAnyPress();
-            Jk1 = Jk1.plus(((yMChange.minus(Jk1.times(mdQ))).times(mdQ.transpose()).times(1/(mdQ.transpose().times(mdQ)).get(0,0))).times(alpha));
-            //System.out.println(Jk1.get(0,0) + " " + Jk1.get(0,1) + " " + Jk1.get(1,0) + " " +Jk1.get(1,1) + " ");
-           // System.out.println("x,y " + oldx + "," + oldy  );
-           // System.out.println("Target: " + tracker.movex + "," + tracker.movey);
-            if(Math.abs(tracker.x - tracker.targetx) < 15 && Math.abs(tracker.y - tracker.targety)<15 ){
-            	System.out.println("done");
-            	break;
-            }
-            
-        }
+		// Calcualte first col of Jacobian
+		J.setMatrix(0, 1, 0, 0, mtrxDiv(del_e, del_q.get(0, 0)));
+	
+        // MOVE J2
+		moveJ2();
+        del_e = getTrackerData().minus(del_e);
 		
+		// Calcualte second col of Jacobian
+		J.setMatrix(0, 1, 1, 1, mtrxDiv(del_e, del_q.get(1, 0)));
+
+		// Follow Target
+		while(true) {
+			System.out.println("\n\n1) MOVE TARGET\n2) PRESS A BUTTON");
+			Sound.beep();
+			Button.waitForAnyPress();
+			broydensUpdate();
+		}
+	}
+			
+	/**
+	 * Move Joint 1 by theta1 radians in del_q.
+	 */
+	private static void moveJ1() {
+		Thread JOINT_1 = new Thread(new PIDController(MOTOR[0], (int) Math.toDegrees(del_q.get(0, 0)), K[0], P[0], TIMEOUT));
+		JOINT_1.start();
+		
+		boolean baseThread = false;
+		
+		new Thread(balanceShoulderThread).start();
+		new Thread(balanceElbowThread).start();
+		
+		while(JOINT_1.isAlive()) {
+			if (!JOINT_1.isAlive() && !baseThread) {
+				new Thread(balanceBaseThread).start();
+				baseThread = true;
+			}
+			
+		}	// wait for joint movement threads to finish
+		
+		stopThread = true;
+		
+		new Thread(balanceAllThread).start();
 	}
 	
-	public static int[] move(	int target1,
-						int target2,
-						int theta1,
-						int theta2,
-						double l1,
-						double l2,
-						UnregulatedMotor base,
-						UnregulatedMotor elbow){
-		System.out.println("err: " + (target1-theta1) + "," + (target2-theta2) );
-		//System.out.println("t1 " + target1 +" theta1 " + theta1);
-		//System.out.println("t2 " + target2 +" theta2 " + theta2);
-		/*if(target1 < -180){
-			target1 = target1 %360;
-		}
-		if(target1 > 180){
-			target1 = (360-target1);
-		}
-		if(target2<-180){
-			target2 = target2 % 360;
-		}
-		if(target2>180){
-			target2 = (360 - target2);
-		}
-*/
-		base.resetTachoCount();
-		elbow.resetTachoCount();
+	/**
+	 * Move Joint 2 by theta2 radians in del_q.
+	 */
+	private static void moveJ2() {
+ 		Thread JOINT_2 = new Thread(new PIDController(MOTOR[1], (int) Math.toDegrees(del_q.get(1, 0)), K[1], P[1], TIMEOUT));
+		JOINT_2.start();
+		
+		boolean shoulderThread = false;
+		
+		new Thread(balanceBaseThread).start();
+		new Thread(balanceElbowThread).start();
+		
+		while(JOINT_2.isAlive()) {
+			if (!JOINT_2.isAlive() && !shoulderThread) {
+				new Thread(balanceShoulderThread).start();
+				shoulderThread = true;
+			}
+		}	// wait for joint movement threads to finish
+		
+		stopThread = true;
+		
+		new Thread(balanceAllThread).start();
+	}
+	
+	/**
+	 * Move Joints 1 & 2 by the radians in del_q.
+	 */
+	private static void moveJ1J2() {
+		Thread JOINT_1 = new Thread(new PIDController(MOTOR[0], (int) Math.toDegrees(del_q.get(0, 0)), K[0], P[0], TIMEOUT));
+ 		Thread JOINT_2 = new Thread(new PIDController(MOTOR[1], (int) Math.toDegrees(del_q.get(1, 0)), K[1], P[1], TIMEOUT));
 
-		double rtarget1, rtarget2;
-		int error = target1 - theta1; 		//distance to target angle for base
-	//	System.out.println("t1 " + target1 +" theta1 " + theta1);
-	//	System.out.println("t2 " + target2 +" theta2 " + theta2);
-		int perror = error; 				//error of previous loop for base
-		int error2 = target2 - theta2;		//distance to target angle for elbow
-		int perror2 = error2;				//error of previous loop for elbow	
+		JOINT_1.start();
+		JOINT_2.start();
+
+		boolean baseThread = false;
+		boolean shoulderThread = false;
 		
-		double x = 0;
-		double y = 0;
+		new Thread(balanceElbowThread).start();
 		
-		int power = 0;
-		int power2 = 0;
-		double kp = 1.2f;
-		double kd = 0.000000001f;
-		long current = System.nanoTime();
-		long prev = current - 1;
-		//long diff = 0;
-		base.setPower(0);
-		elbow.setPower(0);
-		base.forward();
-		elbow.forward();
-		while((Math.abs(error) + Math.abs(perror))/2 > 8 || (Math.abs(error2) + Math.abs(perror2))/2 > 8){
-		//Loop until the end effector is at the position
-		//if(current-prev)
-			//System.out.println("Indicate");
-			theta1 += base.getTachoCount();
-			base.resetTachoCount();
-			theta2 += elbow.getTachoCount();
-			elbow.resetTachoCount();
-			/*if(Math.abs(theta1) >=130){
-				break;
+		while(JOINT_1.isAlive() || JOINT_2.isAlive()) {
+			if (!JOINT_1.isAlive() && !baseThread) {
+				new Thread(balanceBaseThread).start();
+				baseThread = true;
 			}
-			if(Math.abs(theta2) >=160){
-				break;
+			if (!JOINT_2.isAlive() && !shoulderThread) {
+				new Thread(balanceShoulderThread).start();
+				shoulderThread = true;
 			}
-			*/
-			//set power
-			power = (int) Math.round(error*kp + kd*(error-perror)*1000000000/(current-prev));
-			power2 = (int) Math.round(error2*kp + kd*(error2-perror2)*1000000000/(current-prev));
+		}	// wait for joint movement threads to finish
+		
+		stopThread = true;
+		
+		new Thread(balanceAllThread).start();
+	}
+	
+	/**
+	 * Online Broyden's Method IBVS update of Jacobian
+	 */
+	private static void broydensUpdate() {
+		final double alpha = 0.8;
+		final double epsilon = 5;
+		final double threshold = 10;
+		final double step_i = 5;
+		double step = step_i;
+		Matrix Fx = new Matrix(2,1);
+		Matrix target = new Matrix(2,1);
+		Matrix target_new = new Matrix(2,1);
+		Matrix numerator = new Matrix(2,1);
+		double denominator;
+		Fx = getTrackerData();
+
+		do {
+			target_new = getTargetData();
 			
-			if(power * 3 > 100){						//for base
-				power = 100;
+			if (Math.abs(target_new.minus(target).normF()) > threshold) {
+				step = step_i;
+				Sound.beepSequenceUp();
 			}
-			else if(power * 3 < -100){
-				power = -100;
-			}
-			base.setPower(power *  3);
+			target = target_new;
+
+			// (un)comment to solve by way points
+			del_q = J.solve(mtrxDiv(target.minus(Fx), step));
+
+//					// (un)comment to solve by dyamic tracking
+//					del_q = J.solve(target.minus(Fx));
 			
-			if(power2 * 3 > 100){						//for elbow
-				power2 = 100;
-			}
-			else if(power2 * 3 < -100){
-				power2 = -100;
-			}
-			elbow.setPower(power2 * 3);
+			moveJ1J2();
+	        del_e = getTrackerData().minus(Fx);
+
+	        numerator = (del_e.minus(J.times(del_q))).times(del_q.transpose());
+     		denominator = del_q.transpose().times(del_q).get(0, 0);
+        		J = J.plus(mtrxDiv(numerator, denominator).times(alpha));
+        		
+    			Fx = getTrackerData();  			
+			step--;
+
+//			    		System.out.printf("POS ERROR:%f.4\n", Math.abs(target.normF() - Fx.normF()));
 			
-			//Update time and error
-			prev = current;
-			current = System.nanoTime();
-			perror = error;
-			error = target1 - theta1;	
-			perror2 = error2;
-			error2 = target2 - theta2;
-			//System.out.println("E1: " + error + " E2: " + error2);
+		// (un)comment to solve by way points
+		} while (Math.abs(target.normF() - Fx.normF()) > epsilon && step > 0);			
+			
+//				// (un)comment to solve by dyamic tracking
+//				} while (Math.abs(target.normF() - Fx.normF()) > epsilon);
+	}
+
+	/**
+	 * Divide every element in Matrix num, by the value of denom
+	 * 
+	 * @param num numerator Matrix
+	 * @param denom denominator value
+	 * @return the element-wise quotient
+	 */
+	private static Matrix mtrxDiv(Matrix num, double denom) {
+		Matrix temp = num.copy();
+		for (int i = 0; i < temp.getRowDimension(); i++) {
+			for (int j = 0; j < temp.getColumnDimension(); j++) {
+				temp.set(i, j, num.get(i, j) / denom);
+			}
 		}
-		
-		//x = l2*Math.cos(2*theta2) + l1*Math.cos(theta1);
-		//y = l2*Math.sin(2*theta2) + l1*Math.sin(theta1);
-		//rtarget1 = Math.PI*target1/180;
-		//rtarget2 = Math.PI*target2/180;
-		//x = Math.cos(rtarget1)*l1 + Math.cos(rtarget1 + rtarget2)*l2;
-		//y = -(Math.sin(rtarget1)*l1 + Math.sin(rtarget1 + rtarget2)*l2);
-		//System.out.printf("( %.2f, %.2f )" ,x,y);
-		//base.stop();
-		//elbow.stop();
-		//Button.waitForAnyPress();
-		int[] ret = {theta1, theta2};
-		return ret;
+		return temp;
+	}	
+	
+	/**
+	 * Get u & v values of tracker
+	 * 
+	 * @return Matrix with tracker u and v values
+	 */
+	private static Matrix getTrackerData() {
+		Matrix M = new Matrix(2,1);
+		Delay.msDelay(2500);
+	    	try {
+	    		Thread.sleep(500);
+	    			double u = tracker.x;
+	    			double v = tracker.y;
+//			    			System.out.printf("\nGOT TRACKER DATA\nU: %.1f V: %.1f\n\n", u, v);
+	    			M.set(0, 0, u);
+				M.set(1, 0, v);
+	    	} catch (InterruptedException ex) {
+	    		Thread.currentThread().interrupt();
+	    	}
+	    	return M;
+	}
+	
+	/**
+	 * Get u & v values of target
+	 * 
+	 * @return Matrix with target u and v values
+	 */
+	private static Matrix getTargetData() {
+		Matrix M = new Matrix(2,1);
+	    	try {
+	    		Thread.sleep(500);
+    				double u = tracker.targetx;
+    				double v = tracker.targety;
+//			    			System.out.printf("\nGOT TARGET DATA:\nU: %.1f V: %.1f\n\n", u, v);
+	    			M.set(0, 0, u);
+				M.set(1, 0, v);
+	    	} catch (InterruptedException ex) {
+	    		Thread.currentThread().interrupt();
+	    	}
+	    	return M;
 	}
 	
 	public static void balance() {
+
+		balanceShoulder();
+		balanceElbow();
+		balanceBase();
+		
+		while (!stopThread) {
+			
+		}
+		
+		stopThread = false;
+		
+		return;
+	}
+	
+	public static void balanceBase() {
 		base.resetTachoCount();
-		shoulder.resetTachoCount();
-		elbow.resetTachoCount();
 		
 		base.forward();
-		shoulder.forward();
-		elbow.forward();
 		
 		int powerMultiplier = -7;
 		
@@ -344,21 +342,50 @@ public class TestKinematics {
 				base.setPower(5);
 			}
 			
+		}
+		
+		return;
+	}
+	
+	public static void balanceShoulder() {
+		shoulder.resetTachoCount();
+		
+		shoulder.forward();
+		
+		int powerMultiplier = -7;
+		
+		while (!stopThread) {
+			
+			//smoother more spring like, 7 is a good number, joints start to overcompinsate if higher and won't fully return if lower
 			if (shoulder.getTachoCount() != 0) {
 				shoulder.setPower(shoulder.getTachoCount() * powerMultiplier);
 			} else {
 				shoulder.setPower(5);
 			}
 			
+		}
+		
+		return;
+	}
+	
+	public static void balanceElbow() {
+		elbow.resetTachoCount();
+		
+		elbow.forward();
+		
+		int powerMultiplier = -7;
+		
+		while (!stopThread) {
+			
+			//smoother more spring like, 7 is a good number, joints start to overcompinsate if higher and won't fully return if lower
 			if (elbow.getTachoCount() != 0) {
 				elbow.setPower(elbow.getTachoCount() * powerMultiplier);
 			} else {
 				elbow.setPower(5);
 			}
 			
-			
 		}
-		stopThread = false;
+		
 		return;
 	}
 }
