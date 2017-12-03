@@ -57,7 +57,7 @@ public class PIDController implements Runnable{
 		prevError = error;	// error from previous sample
 		derivative = 0;		// the derivative error
 		integral = 0;		// the integral error
-		delta_t = 0;			// delta t
+		delta_t = 0;		// delta t
 		elapsed_t = 0;		// elapsed t
 		power = 0;			// power to motor
 		
@@ -85,7 +85,7 @@ public class PIDController implements Runnable{
 				Sound.buzz();
 				break;}
 		}
-		m.setPower(0);
+		//m.setPower(0);
 		if (error > 0) {
 			Sound.beepSequence();
 		}

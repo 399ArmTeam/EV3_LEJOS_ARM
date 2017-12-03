@@ -13,6 +13,9 @@ import vision.TrackerReader;
 public class TestKinematics {
 	//public static TrackerReader tracker;
 	public static boolean stopThread = false;
+	public static boolean stopBaseThread = false;
+	public static boolean stopShoulderThread = false;
+	public static boolean stopElbowThread = false;
 	
 	public static UnregulatedMotor base = new UnregulatedMotor(MotorPort.A);
 	public static UnregulatedMotor shoulder = new UnregulatedMotor(MotorPort.B); //The base joint
@@ -22,8 +25,8 @@ public class TestKinematics {
 	private static UnregulatedMotor[] MOTOR;
 	
 	// PID CONTROLLER
-	private static final double[][] K = {{6, 0, 1}, {5, 0, 1}};	// K gain terms for PID control of motors at joints 1 and 2
-	private static final int P[] = {40, 40};						// power maximum for PID control 0 ≤ p ≤ 100
+	private static final double[][] K = {{5, 0, 1}, {6.5, 0, 3}, {5, 0, 1}};	// K gain terms for PID control of motors at joints 1 and 2
+	private static final int P[] = {40, 70, 80};						// power maximum for PID control 0 ≤ p ≤ 100
 	private static final int TIMEOUT = 3000;						// kill PID if SP not reached within this many milliseconds
 	
 	// CV TRACKER READER
@@ -31,9 +34,10 @@ public class TestKinematics {
 	private static TrackerReader tracker2;
 
 	// DATA MATRICES
-	private static Matrix del_e = new Matrix(2,1);		
-	private static Matrix del_q = new Matrix(2,1);
+	private static Matrix del_e = new Matrix(4,1);		
+	private static Matrix del_q = new Matrix(3,1);
 	private static Matrix J = new Matrix(2,2);	
+	private static Matrix JTest = new Matrix(4,3);	
 	
 	public static Runnable balanceAllThread = new Runnable() {
         public void run() {
@@ -60,15 +64,42 @@ public class TestKinematics {
     };
 
 	public static void main(String args[]){
+		base.resetTachoCount();
+		shoulder.resetTachoCount();
+		elbow.resetTachoCount();
 		
-		//start self balancing thread
-	    new Thread(balanceAllThread).start();
+		// Setup joint motors and visual tracking
+				MOTOR = new UnregulatedMotor[3];
+				MOTOR[0] = base;			// Joint 1
+				MOTOR[1] = shoulder;			// Joint 2
+				MOTOR[2] = elbow;			// Joint 3
+		
+		stopAllMotors();
+		Delay.msDelay(1000);
+		
+		del_q.set(0, 0, Math.PI * 2); //base
+        del_q.set(1, 0, Math.PI /2); //shoulder
+        del_q.set(2, 0, Math.PI /2); //elbow
+        
+        new Thread(balanceAllThread).start();
+        
+        //moveJ1();
+        Delay.msDelay(10000);
+        moveJ2();
+        Delay.msDelay(10000);
+        moveJ3();
+		
+        System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+		Button.waitForAnyPress();
 		
 		tracker = new TrackerReader();
 		tracker.start();
 		
 		tracker2 = new TrackerReader();							// visual servoing tracker client
         //tracker2.start();
+		
+		//start self balancing thread
+		new Thread(balanceAllThread).start();
 
 		/**
 		 * UVS Code for L3 a 2DOF SCARA Arm
@@ -80,15 +111,11 @@ public class TestKinematics {
 		 * Uncalibrated visual servoing using orthogonal motions and Broyden's Method Jacobian update.
 		 * @param args
 		 */
-		// Setup joint motors and visual tracking
-		MOTOR = new UnregulatedMotor[3];
-		MOTOR[0] = base;			// Joint 1
-		MOTOR[1] = shoulder;			// Joint 2
-		MOTOR[2] = elbow;			// Joint 2
         
 		// Instantiate del_q with radian angles for deriving initial Jacobian
-        del_q.set(0, 0, Math.PI / 2);
-        del_q.set(1, 0, Math.PI / 2);
+        del_q.set(0, 0, Math.PI * 2); //base
+        del_q.set(1, 0, Math.PI /2); //shoulder
+        del_q.set(2, 0, Math.PI /2); //elbow
 
         // Wait for tracker to be selected, then grab it's values to get the initial position
         Delay.msDelay(1000);
@@ -99,20 +126,41 @@ public class TestKinematics {
         // Get del_e from tracker by recording the starting coordinates of tracker and then moving
         // each motor by del_q and taking the difference wrt the new tracker position
 		del_e = getTrackerData();
+		//System.out.println(del_e.getRowDimension());
+		//Button.waitForAnyPress();
+		
+        //del_e.setMatrix(0, 1, 0, 0, getTrackerData());
        			
         // MOVE J1
 		moveJ1();
         del_e = getTrackerData().minus(del_e);
         
 		// Calcualte first col of Jacobian
-		J.setMatrix(0, 1, 0, 0, mtrxDiv(del_e, del_q.get(0, 0)));
+		JTest.setMatrix(0, 1, 0, 0, mtrxDiv(del_e, del_q.get(0, 0)));
 	
         // MOVE J2
 		moveJ2();
         del_e = getTrackerData().minus(del_e);
 		
 		// Calcualte second col of Jacobian
-		J.setMatrix(0, 1, 1, 1, mtrxDiv(del_e, del_q.get(1, 0)));
+		JTest.setMatrix(0, 1, 1, 1, mtrxDiv(del_e, del_q.get(1, 0)));
+		
+		// MOVE J2
+		moveJ3();
+		del_e = getTrackerData().minus(del_e);
+		
+		// Calcualte third col of Jacobian
+		JTest.setMatrix(0, 1, 2, 2, mtrxDiv(del_e, del_q.get(2, 0)));
+		
+		JTest.set(2, 0, 1);
+		JTest.set(3, 0, 1);
+		
+		JTest.set(2, 1, 1);
+		JTest.set(3, 1, 1);
+		
+		JTest.set(2, 2, 1);
+		JTest.set(3, 2, 1);
+		
 
 		// Follow Target
 		while(true) {
@@ -128,22 +176,30 @@ public class TestKinematics {
 	 */
 	private static void moveJ1() {
 		Thread JOINT_1 = new Thread(new PIDController(MOTOR[0], (int) Math.toDegrees(del_q.get(0, 0)), K[0], P[0], TIMEOUT));
+		
+		stopAllMotors();
+		
 		JOINT_1.start();
 		
 		boolean baseThread = false;
+		
 		
 		new Thread(balanceShoulderThread).start();
 		new Thread(balanceElbowThread).start();
 		
 		while(JOINT_1.isAlive()) {
+			/*
 			if (!JOINT_1.isAlive() && !baseThread) {
-				new Thread(balanceBaseThread).start();
+				//new Thread(balanceBaseThread).start();
 				baseThread = true;
 			}
+			*/
 			
 		}	// wait for joint movement threads to finish
 		
-		stopThread = true;
+		stopAllMotors();
+		
+		System.out.println("-----------------------------------------------------------------------------------------------------");
 		
 		new Thread(balanceAllThread).start();
 	}
@@ -153,7 +209,10 @@ public class TestKinematics {
 	 */
 	private static void moveJ2() {
  		Thread JOINT_2 = new Thread(new PIDController(MOTOR[1], (int) Math.toDegrees(del_q.get(1, 0)), K[1], P[1], TIMEOUT));
-		JOINT_2.start();
+		
+ 		stopAllMotors();
+ 		
+ 		JOINT_2.start();
 		
 		boolean shoulderThread = false;
 		
@@ -161,13 +220,45 @@ public class TestKinematics {
 		new Thread(balanceElbowThread).start();
 		
 		while(JOINT_2.isAlive()) {
+			/*
 			if (!JOINT_2.isAlive() && !shoulderThread) {
 				new Thread(balanceShoulderThread).start();
 				shoulderThread = true;
 			}
+			*/
 		}	// wait for joint movement threads to finish
 		
-		stopThread = true;
+		stopAllMotors();
+		
+		System.out.println("-----------------------------------------------------------------------------------------------------");
+		
+		new Thread(balanceAllThread).start();
+	}
+	
+	private static void moveJ3() {
+ 		Thread JOINT_3 = new Thread(new PIDController(MOTOR[2], (int) Math.toDegrees(del_q.get(2, 0)), K[2], P[2], TIMEOUT));
+		
+ 		stopAllMotors();
+ 		
+ 		JOINT_3.start();
+		
+		boolean elbowThread = false;
+		
+		new Thread(balanceBaseThread).start();
+		new Thread(balanceShoulderThread).start();
+		
+		while(JOINT_3.isAlive()) {
+			/*
+			if (!JOINT_3.isAlive() && !elbowThread) {
+				new Thread(balanceElbowThread).start();
+				elbowThread = true;
+			}
+			*/
+		}	// wait for joint movement threads to finish
+		
+		stopAllMotors();
+		
+		System.out.println("-----------------------------------------------------------------------------------------------------");
 		
 		new Thread(balanceAllThread).start();
 	}
@@ -179,6 +270,8 @@ public class TestKinematics {
 		Thread JOINT_1 = new Thread(new PIDController(MOTOR[0], (int) Math.toDegrees(del_q.get(0, 0)), K[0], P[0], TIMEOUT));
  		Thread JOINT_2 = new Thread(new PIDController(MOTOR[1], (int) Math.toDegrees(del_q.get(1, 0)), K[1], P[1], TIMEOUT));
 
+ 		stopAllMotors();
+ 		
 		JOINT_1.start();
 		JOINT_2.start();
 
@@ -198,9 +291,59 @@ public class TestKinematics {
 			}
 		}	// wait for joint movement threads to finish
 		
-		stopThread = true;
+		stopAllMotors();
 		
 		new Thread(balanceAllThread).start();
+	}
+	
+	/**
+	 * Move Joints 1 & 2 by the radians in del_q.
+	 */
+	private static void moveJ1J2J3() {
+		Thread JOINT_1 = new Thread(new PIDController(MOTOR[0], (int) Math.toDegrees(del_q.get(0, 0)), K[0], P[0], TIMEOUT));
+ 		Thread JOINT_2 = new Thread(new PIDController(MOTOR[1], (int) Math.toDegrees(del_q.get(1, 0)), K[1], P[1], TIMEOUT));
+ 		Thread JOINT_3 = new Thread(new PIDController(MOTOR[2], (int) Math.toDegrees(del_q.get(2, 0)), K[2], P[2], TIMEOUT));
+
+ 		stopAllMotors();
+ 		
+		JOINT_1.start();
+		JOINT_2.start();
+		JOINT_3.start();
+
+		boolean baseThread = false;
+		boolean shoulderThread = false;
+		boolean elbowThread = false;
+		
+		while(JOINT_1.isAlive() || JOINT_2.isAlive() || JOINT_3.isAlive()) {
+			if (!JOINT_1.isAlive() && !baseThread) {
+				new Thread(balanceBaseThread).start();
+				baseThread = true;
+			}
+			if (!JOINT_2.isAlive() && !shoulderThread) {
+				new Thread(balanceShoulderThread).start();
+				shoulderThread = true;
+			}
+			if (!JOINT_3.isAlive() && !elbowThread) {
+				new Thread(balanceShoulderThread).start();
+				elbowThread = true;
+			}
+		}	// wait for joint movement threads to finish
+		
+		stopAllMotors();
+		
+		System.out.println("-----------------------------------------------------------------------------------------------------");
+		
+		new Thread(balanceAllThread).start();
+	}
+	
+	private static void stopAllMotors() {
+	
+		stopThread = true;
+		stopBaseThread = true;
+		stopShoulderThread = true;
+		stopElbowThread = true;
+		Delay.msDelay(15);
+		
 	}
 	
 	/**
@@ -212,11 +355,11 @@ public class TestKinematics {
 		final double threshold = 10;
 		final double step_i = 5;
 		double step = step_i;
-		Matrix Fx = new Matrix(2,1);
-		Matrix target = new Matrix(2,1);
-		Matrix target_new = new Matrix(2,1);
-		Matrix numerator = new Matrix(2,1);
-		double denominator;
+		Matrix Fx = new Matrix(4,1);
+		Matrix target = new Matrix(4,1);
+		Matrix target_new = new Matrix(4,1);
+		Matrix numerator = new Matrix(4,1);
+		double denominator = 1;
 		Fx = getTrackerData();
 
 		do {
@@ -229,17 +372,58 @@ public class TestKinematics {
 			target = target_new;
 
 			// (un)comment to solve by way points
-			del_q = J.solve(mtrxDiv(target.minus(Fx), step));
+			/*
+			System.out.print(JTest.getRowDimension());
+			System.out.print(JTest.getColumnDimension());
+			System.out.print(" ");
+			System.out.print(mtrxDiv(target.minus(Fx), step).getRowDimension());
+			System.out.print(mtrxDiv(target.minus(Fx), step).getColumnDimension());
+			System.out.print(" ");
+			*/
+			//Button.waitForAnyPress();
+			//del_q = JTest.solve(mtrxDiv(target.minus(Fx), step));
+			del_q = JTest.inverse().times(mtrxDiv(target.minus(Fx), step));
+			
+			del_q = del_q.getMatrix(0, 2, 0, 0);
 
 //					// (un)comment to solve by dyamic tracking
 //					del_q = J.solve(target.minus(Fx));
 			
-			moveJ1J2();
+			//moveJ1J2();
+			moveJ1J2J3();
 	        del_e = getTrackerData().minus(Fx);
-
-	        numerator = (del_e.minus(J.times(del_q))).times(del_q.transpose());
+	        
+	        /*
+	        System.out.print(JTest.getRowDimension());
+			System.out.print(JTest.getColumnDimension());
+			System.out.print(" ");
+	        System.out.print(numerator.getRowDimension());
+			System.out.print(numerator.getColumnDimension());
+			System.out.print(" ");
+			System.out.print(del_q.getRowDimension());
+			System.out.print(del_q.getColumnDimension());
+			System.out.print(" ");
+			Button.waitForAnyPress();
+			System.out.print((del_e.minus(JTest.times(del_q))).getRowDimension());
+			System.out.print((del_e.minus(JTest.times(del_q))).getColumnDimension());
+			System.out.print(" ");
+			Button.waitForAnyPress();
+			System.out.print((del_e.minus(JTest.times(del_q))).times(del_q.transpose()).getRowDimension());
+			System.out.print((del_e.minus(JTest.times(del_q))).times(del_q.transpose()).getColumnDimension());
+			System.out.print(" ");
+			Button.waitForAnyPress();
+			*/
+	        
+	        numerator = (del_e.minus(JTest.times(del_q))).times(del_q.transpose());
+	        
+	        /*
+	        System.out.print(denominator);
+			System.out.print(del_q.transpose().times(del_q).get(0, 0));
+			Button.waitForAnyPress();
+			*/
+			
      		denominator = del_q.transpose().times(del_q).get(0, 0);
-        		J = J.plus(mtrxDiv(numerator, denominator).times(alpha));
+        		JTest = JTest.plus(mtrxDiv(numerator, denominator).times(alpha));
         		
     			Fx = getTrackerData();  			
 			step--;
@@ -276,7 +460,7 @@ public class TestKinematics {
 	 * @return Matrix with tracker u and v values
 	 */
 	private static Matrix getTrackerData() {
-		Matrix M = new Matrix(2,1);
+		Matrix M = new Matrix(4,1);
 		Delay.msDelay(2500);
 	    	try {
 	    		Thread.sleep(500);
@@ -288,6 +472,9 @@ public class TestKinematics {
 	    	} catch (InterruptedException ex) {
 	    		Thread.currentThread().interrupt();
 	    	}
+	    	
+	    	M.set(2, 0, 1);
+	    	M.set(3, 0, 1);
 	    	return M;
 	}
 	
@@ -297,7 +484,7 @@ public class TestKinematics {
 	 * @return Matrix with target u and v values
 	 */
 	private static Matrix getTargetData() {
-		Matrix M = new Matrix(2,1);
+		Matrix M = new Matrix(4,1);
 	    	try {
 	    		Thread.sleep(500);
     				double u = tracker.targetx;
@@ -308,20 +495,31 @@ public class TestKinematics {
 	    	} catch (InterruptedException ex) {
 	    		Thread.currentThread().interrupt();
 	    	}
+	    	
+	    	M.set(2, 0, 1);
+	    	M.set(3, 0, 1);
 	    	return M;
 	}
 	
 	public static void balance() {
-
-		balanceShoulder();
-		balanceElbow();
-		balanceBase();
+		base.resetTachoCount();
+		shoulder.resetTachoCount();
+		elbow.resetTachoCount();
+		
+		new Thread(balanceShoulderThread).start();
+		new Thread(balanceElbowThread).start();
+		new Thread(balanceBaseThread).start();
+		
+		stopThread = false;
 		
 		while (!stopThread) {
 			
 		}
 		
-		stopThread = false;
+		stopThread = true;
+		stopBaseThread = true;
+		stopShoulderThread = true;
+		stopElbowThread = true;
 		
 		return;
 	}
@@ -331,17 +529,22 @@ public class TestKinematics {
 		
 		base.forward();
 		
-		int powerMultiplier = -7;
+		int powerMultiplier = -3;
 		
-		while (!stopThread) {
+		stopBaseThread = false;
+		
+		while (!stopBaseThread) {
+			
+			System.out.println("0(" + base.getTachoCount() + ")");
 			
 			//smoother more spring like, 7 is a good number, joints start to overcompinsate if higher and won't fully return if lower
-			if (base.getTachoCount() != 0) {
+			if (base.getTachoCount() >= 1 || base.getTachoCount() <= 1) {
 				base.setPower(base.getTachoCount() * powerMultiplier);
+			} else if (base.getTachoCount() >= 0) {
+				base.setPower(-5);
 			} else {
 				base.setPower(5);
 			}
-			
 		}
 		
 		return;
@@ -352,13 +555,19 @@ public class TestKinematics {
 		
 		shoulder.forward();
 		
-		int powerMultiplier = -7;
+		int powerMultiplier = -6;
 		
-		while (!stopThread) {
+		stopShoulderThread = false;
+		
+		while (!stopShoulderThread) {
+			
+			System.out.println("     1(" + shoulder.getTachoCount() + ")");
 			
 			//smoother more spring like, 7 is a good number, joints start to overcompinsate if higher and won't fully return if lower
-			if (shoulder.getTachoCount() != 0) {
+			if (shoulder.getTachoCount() >= 1 || shoulder.getTachoCount() <= 1) {
 				shoulder.setPower(shoulder.getTachoCount() * powerMultiplier);
+			} else if (shoulder.getTachoCount() >= 0) {
+				shoulder.setPower(-5);
 			} else {
 				shoulder.setPower(5);
 			}
@@ -373,13 +582,19 @@ public class TestKinematics {
 		
 		elbow.forward();
 		
-		int powerMultiplier = -7;
+		int powerMultiplier = -6;
 		
-		while (!stopThread) {
+		stopElbowThread = false;
+		
+		while (!stopElbowThread) {
+			
+			System.out.println("          2(" + elbow.getTachoCount() + ")");
 			
 			//smoother more spring like, 7 is a good number, joints start to overcompinsate if higher and won't fully return if lower
-			if (elbow.getTachoCount() != 0) {
+			if (elbow.getTachoCount() >= 1 || elbow.getTachoCount() <= 1) {
 				elbow.setPower(elbow.getTachoCount() * powerMultiplier);
+			} else if (elbow.getTachoCount() >= 0) {
+				elbow.setPower(-5);
 			} else {
 				elbow.setPower(5);
 			}
