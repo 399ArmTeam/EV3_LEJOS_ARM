@@ -25,7 +25,7 @@ public class TestKinematics {
 	private static UnregulatedMotor[] MOTOR;
 	
 	// PID CONTROLLER
-	private static final double[][] K = {{5, 0, 1}, {6.5, 0, 3}, {5, 0, 1}};	// K gain terms for PID control of motors at joints 1 and 2
+	private static final double[][] K = {{5, 0, 1}, {6.0, 0, 0}, {5, 0, 1}};	// K gain terms for PID control of motors at joints 1 and 2
 	private static final int P[] = {40, 70, 80};						// power maximum for PID control 0 ≤ p ≤ 100
 	private static final int TIMEOUT = 3000;						// kill PID if SP not reached within this many milliseconds
 	
@@ -87,7 +87,7 @@ public class TestKinematics {
         Delay.msDelay(10000);
         moveJ2();
         Delay.msDelay(10000);
-        moveJ3();
+        //moveJ3();
 		
         System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
 		Button.waitForAnyPress();
