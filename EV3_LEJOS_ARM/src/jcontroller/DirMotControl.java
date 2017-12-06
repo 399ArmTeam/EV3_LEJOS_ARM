@@ -10,17 +10,27 @@ import lejos.remote.ev3.RemoteEV3;
 import lejos.utility.Delay;
 //import Jama.Matrix;
 import lejos.utility.Matrix;
+
+import java.net.MalformedURLException;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
+
 import control.Move;
+
 
 public class DirMotControl {
 	public static UnregulatedMotor LR = new UnregulatedMotor(MotorPort.A);
     public static UnregulatedMotor FB = new UnregulatedMotor(MotorPort.B);
     public static UnregulatedMotor UD = new UnregulatedMotor(MotorPort.C);
+    public static UnregulatedMotor base;
+    public static UnregulatedMotor L1;
+    public static UnregulatedMotor L2;
     public static UnregulatedMotor [] controller_motors = {LR, FB, UD};
     
     public static double l1 = JacCalc.l1;
     public static double l2 = JacCalc.l2;
     public static double base_height = JacCalc.base_height;
+    public static double[] offset = {8.5,0, 11.2};
     
     public static void main(String[] args) {	
 
@@ -39,7 +49,7 @@ public class DirMotControl {
     	
     	String[] names = {"Happy", "qwert"};
 	    Brick[] bricks = new Brick[names.length];
-	    Move.getInstance();
+	   
 	    
 	    try {
 	    	bricks[0] = BrickFinder.getLocal();
@@ -57,25 +67,30 @@ public class DirMotControl {
 	        LR.resetTachoCount();
 	        FB.resetTachoCount();
 	        UD.resetTachoCount();
-	        try{
-	        	UnregulatedMotor base = new UnregulatedMotor(bricks[1].getPort("A"));
-		        UnregulatedMotor L1 = new UnregulatedMotor(bricks[1].getPort("B"));
-		        UnregulatedMotor L2 = new UnregulatedMotor(bricks[1].getPort("C"));
-		        UnregulatedMotor [] arm_motors = {base, L1, L2};
+//	        try{
+	        	base = new UnregulatedMotor(bricks[1].getPort("A"));
+		        L1 = new UnregulatedMotor(bricks[1].getPort("B"));
+		        L2 = new UnregulatedMotor(bricks[1].getPort("C"));
+		        
+		        base.resetTachoCount(); L1.resetTachoCount(); L2.resetTachoCount();
+		        
+		        UnregulatedMotor [] arm_motors = {base, L1, L2}; 
+		        Move.getInstance(arm_motors);
+		        Move.setOrigin();
+		        
 		        glcds[1].clear();
 		        
 		        //Calibrate arm to init position
-		        double[][] eff_coord = {{0}, {0}, {0}};//Change to initial position
-		        double[][] current_pos = {{0},{0},{0}};//change to initial position
-		        double[][] theta = {{0},{0},{0}};// Change to initial theta
+		        double[][] eff_coord = {{offset[0]}, {offset[1]}, {offset[2]}};//Change to initial position
+		        double[][] current_pos = {{offset[0]}, {offset[1]}, {offset[2]}};//change to initial position
+		        double[][] theta = {{15},{15},{15}};// Change to initial theta
 		        
+		        Matrix dP_Matrix = new Matrix(3,1);
 		        while(Button.ENTER.isUp())
 		        {		        	
 		        	UpdateEffector(eff_coord);// get new target coordinate
 		        	glcds[1].drawString("Target:[x,y,z]",dispwidth / 2,dispheight / 2,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
-		        	glcds[1].drawString(String.format("%.1f", eff_coord[0][0]),dispwidth * 1/4, dispheight* 3/4,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
-		        	glcds[1].drawString(String.format("%.1f", eff_coord[1][0]),dispwidth * 2/4, dispheight* 3/4,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
-		        	glcds[1].drawString(String.format("%.1f", eff_coord[2][0]),dispwidth * 3/4, dispheight* 3/4,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+		        	
 		        	
 		        	double error = Math.sqrt(Math.pow(eff_coord[0][0]-current_pos[0][0], 2)+ Math.pow(eff_coord[1][0]-current_pos[1][0], 2) + Math.pow(eff_coord[2][0]-current_pos[2][0], 2));
 		        	
@@ -85,34 +100,67 @@ public class DirMotControl {
 			        					   {eff_coord[2][0]-current_pos[2][0]}};
 			        	
 			        	Matrix T = new Matrix(theta);
-			        	Matrix dP_Matrix = new Matrix(d_pos);
-			        	Matrix invJacobian = new Matrix(JacCalc.getJacobian(theta)).inverse();
+			        	dP_Matrix = new Matrix(d_pos);
+			        	Matrix jacobian = new Matrix(JacCalc.getJacobian(theta));
+			        	jacobian.print(System.out);
+			        	Matrix invJacobian = jacobian.inverse();
 			        	Matrix dT_Matrix = invJacobian.times(dP_Matrix);
 			        	T.plusEquals(dT_Matrix);
 			        	
 			        	theta[0][0] = T.getArray()[0][0]; theta[1][0] = T.getArray()[1][0]; theta[2][0] = T.getArray()[2][0];
-			        	//Move robot here
-			        	Move.J123(dT_Matrix, true, 2000);
+			        	
+			        	Move.J1(dT_Matrix, true, 2000);
 			        	UpdatePosition(current_pos, theta);
+			        	
+		       
 		        	}
+		        	glcds[1].drawString(String.format("%.1f", dP_Matrix.getArray()[0][0]),dispwidth * 1/4, dispheight* 3/4,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+		        	glcds[1].drawString(String.format("%.1f", dP_Matrix.getArray()[1][0]),dispwidth * 2/4, dispheight* 3/4,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+		        	glcds[1].drawString(String.format("%.1f", dP_Matrix.getArray()[2][0]),dispwidth * 3/4, dispheight* 3/4,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
 		        	
-		        	Delay.msDelay(100);
+		        	Delay.msDelay(1000);
 		        	glcds[1].clear();
 		        	
 		        }
-		        base.close();
-		        L1.close();
-		        L2.close();  
-	        } 
-	        catch(Exception e){
-	        	System.out.println("Cannot get motor");
-	        } 
+//	        } 
+//	        catch(Exception e){
+//	        	System.out.println(e.getMessage());
+//	        	
+//	        }
+//	        finally{
+//	    		base.close();
+//		        L1.close();
+//		        L2.close();  
+//	    	}
 	    }
-	    catch (Exception e)
+	    catch (RemoteException e)
 	    {
 	        System.out.println("Got exception " + e);
 	    }
+	    catch (NotBoundException e)
+	    {
+	        System.out.println("Got exception " + e);
+	    }
+	    catch (MalformedURLException e)
+	    {
+	        System.out.println("Got exception " + e);
+	    }
+	    catch(Exception e){
+	        System.out.println("Got exception " + e);
+	    }
+
+        finally {
+    		base.close();
+	        L1.close();
+	        L2.close();  
+        }
     	
+    }
+    
+    public static double[][] CalculateAngle(){
+    	double[][] new_theta = {{0},{0},{0}};
+    	
+    	return new_theta;
     }
     
     //Function to calculate new effector position
