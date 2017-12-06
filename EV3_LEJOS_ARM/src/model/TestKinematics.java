@@ -84,7 +84,7 @@ public class TestKinematics {
         new Thread(balanceAllThread).start();
         
         //moveJ1();
-        Delay.msDelay(10000);
+//        Delay.msDelay(10000);
         moveJ2();
         Delay.msDelay(10000);
         //moveJ3();
