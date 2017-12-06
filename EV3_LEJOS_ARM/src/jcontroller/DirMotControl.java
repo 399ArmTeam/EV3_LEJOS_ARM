@@ -92,7 +92,7 @@ public class DirMotControl {
 			        	
 			        	theta[0][0] = T.getArray()[0][0]; theta[1][0] = T.getArray()[1][0]; theta[2][0] = T.getArray()[2][0];
 			        	//Move robot here
-			        	Move.J123(dT_Matrix, true);
+			        	Move.J123(dT_Matrix, true, 2000);
 			        	UpdatePosition(current_pos, theta);
 		        	}
 		        	
