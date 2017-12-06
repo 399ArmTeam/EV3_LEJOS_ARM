@@ -22,15 +22,24 @@ public class JointTest {
 		del_q.set(1, 0, Math.PI/8);	// theta 2 for J2
 		del_q.set(2, 0, Math.PI/16);	// theta 3 for J3
 			
+		
+		Move.SERVOS[0].resetTachoCount();
+		Move.SERVOS[1].resetTachoCount();
+		Move.SERVOS[2].resetTachoCount();
+
 		while(true) {
-			switch(Button.waitForAnyPress()) {
-				case 1: Move.J2(del_q, false, 0);			break;	// UP Button
-				case 2: Move.J3(del_q.times(-1), false, 0); break;	// ENTER Button
-				case 4:	Move.J2(del_q.times(-1), false, 0); break;	// DOWN Button
-				case 8:	Move.J1(del_q.times(-1), false, 0); break;	// RIGHT Button
-				case 16:	Move.J1(del_q, false, 0); 			break;	// LEFT Button
-				case 32:Move.J3(del_q, false, 0); 			break;	// ESC Button
-			}
+			Button.waitForAnyPress();
+			System.out.println(Integer.toString(Move.SERVOS[2].getTachoCount()));
+			
+//			switch(Button.waitForAnyPress()) {
+//				case 1: Move.J2(del_q, true, 0);			break;	// UP Button
+//				case 2: Move.J3(del_q.times(-1), true, 0); break;	// ENTER Button
+//				case 4:	Move.J2(del_q.times(-1), true, 0); break;	// DOWN Button
+//				case 8:	Move.J1(del_q.times(-1), true, 0); break;	// RIGHT Button
+//				case 16:	Move.J1(del_q, true, 0); 			break;	// LEFT Button
+//				case 32:Move.J3(del_q, true, 0); 			break;	// ESC Button
+				
+//			}
 		}
 	}
 }
