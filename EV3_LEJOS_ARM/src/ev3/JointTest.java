@@ -24,12 +24,12 @@ public class JointTest {
 			
 		while(true) {
 			switch(Button.waitForAnyPress()) {
-				case 1: Move.J2(del_q, false);			break;	// UP Button
-				case 2: Move.J3(del_q.times(-1), false); break;	// ENTER Button
-				case 4:	Move.J2(del_q.times(-1), false); break;	// DOWN Button
-				case 8:	Move.J1(del_q.times(-1), false); break;	// RIGHT Button
-				case 16:	Move.J1(del_q, false); 			break;	// LEFT Button
-				case 32:Move.J3(del_q, false); 			break;	// ESC Button
+				case 1: Move.J2(del_q, false, 0);			break;	// UP Button
+				case 2: Move.J3(del_q.times(-1), false, 0); break;	// ENTER Button
+				case 4:	Move.J2(del_q.times(-1), false, 0); break;	// DOWN Button
+				case 8:	Move.J1(del_q.times(-1), false, 0); break;	// RIGHT Button
+				case 16:	Move.J1(del_q, false, 0); 			break;	// LEFT Button
+				case 32:Move.J3(del_q, false, 0); 			break;	// ESC Button
 			}
 		}
 	}
