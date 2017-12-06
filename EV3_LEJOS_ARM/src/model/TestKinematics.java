@@ -25,8 +25,8 @@ public class TestKinematics {
 	private static UnregulatedMotor[] MOTOR;
 	
 	// PID CONTROLLER
-	private static final double[][] K = {{5, 0, 1}, {6.0, 0, 0}, {5, 0, 1}};	// K gain terms for PID control of motors at joints 1 and 2
-	private static final int P[] = {40, 70, 80};						// power maximum for PID control 0 ≤ p ≤ 100
+	private static final double[][] K = {{5, 0, 1}, {4.0, 0, 1}, {3, 0, 1}};	// K gain terms for PID control of motors at joints 1 and 2
+	private static final int P[] = {40, 80, 80};						// power maximum for PID control 0 ≤ p ≤ 100
 	private static final int TIMEOUT = 3000;						// kill PID if SP not reached within this many milliseconds
 	
 	// CV TRACKER READER
@@ -36,8 +36,8 @@ public class TestKinematics {
 	// DATA MATRICES
 	private static Matrix del_e = new Matrix(4,1);		
 	private static Matrix del_q = new Matrix(3,1);
-	private static Matrix J = new Matrix(2,2);	
-	private static Matrix JTest = new Matrix(4,3);	
+	private static Matrix J = new Matrix(2,2);
+	private static Matrix JTest = new Matrix(4,3);
 	
 	public static Runnable balanceAllThread = new Runnable() {
         public void run() {
@@ -78,19 +78,20 @@ public class TestKinematics {
 		Delay.msDelay(1000);
 		
 		del_q.set(0, 0, Math.PI * 2); //base
-        del_q.set(1, 0, Math.PI /2); //shoulder
-        del_q.set(2, 0, Math.PI /2); //elbow
+        del_q.set(1, 0, -Math.PI * 1.4); //shoulder
+        del_q.set(2, 0, -Math.PI /2); //elbow
         
         new Thread(balanceAllThread).start();
         
         //moveJ1();
-        Delay.msDelay(10000);
+        Delay.msDelay(1000);
         moveJ2();
-        Delay.msDelay(10000);
-        //moveJ3();
+        Delay.msDelay(1000);
+        moveJ3();
+        Delay.msDelay(1000);
 		
-        System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-		Button.waitForAnyPress();
+        //System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+		//Button.waitForAnyPress();
 		
 		tracker = new TrackerReader();
 		tracker.start();
@@ -208,6 +209,11 @@ public class TestKinematics {
 	 * Move Joint 2 by theta2 radians in del_q.
 	 */
 	private static void moveJ2() {
+		if ( del_q.get(1, 0) < 0) {
+			K[1][0] = 0.5;
+		} else {
+			K[1][0] = 3;
+		}
  		Thread JOINT_2 = new Thread(new PIDController(MOTOR[1], (int) Math.toDegrees(del_q.get(1, 0)), K[1], P[1], TIMEOUT));
 		
  		stopAllMotors();
@@ -236,6 +242,11 @@ public class TestKinematics {
 	}
 	
 	private static void moveJ3() {
+		if ( del_q.get(2, 0) < 0) {
+			K[2][0] = 0.5;
+		} else {
+			K[2][0] = 4;
+		}
  		Thread JOINT_3 = new Thread(new PIDController(MOTOR[2], (int) Math.toDegrees(del_q.get(2, 0)), K[2], P[2], TIMEOUT));
 		
  		stopAllMotors();
@@ -300,6 +311,16 @@ public class TestKinematics {
 	 * Move Joints 1 & 2 by the radians in del_q.
 	 */
 	private static void moveJ1J2J3() {
+		if ( del_q.get(2, 0) < 0) {
+			K[2][0] = 0.5;
+		} else {
+			K[2][0] = 3;
+		}
+		if ( del_q.get(1, 0) < 0) {
+			K[1][0] = 1.5;
+		} else {
+			K[1][0] = 4;
+		}
 		Thread JOINT_1 = new Thread(new PIDController(MOTOR[0], (int) Math.toDegrees(del_q.get(0, 0)), K[0], P[0], TIMEOUT));
  		Thread JOINT_2 = new Thread(new PIDController(MOTOR[1], (int) Math.toDegrees(del_q.get(1, 0)), K[1], P[1], TIMEOUT));
  		Thread JOINT_3 = new Thread(new PIDController(MOTOR[2], (int) Math.toDegrees(del_q.get(2, 0)), K[2], P[2], TIMEOUT));
@@ -535,7 +556,7 @@ public class TestKinematics {
 		
 		while (!stopBaseThread) {
 			
-			System.out.println("0(" + base.getTachoCount() + ")");
+			//System.out.println("0(" + base.getTachoCount() + ")");
 			
 			//smoother more spring like, 7 is a good number, joints start to overcompinsate if higher and won't fully return if lower
 			if (base.getTachoCount() >= 1 || base.getTachoCount() <= 1) {
@@ -561,7 +582,7 @@ public class TestKinematics {
 		
 		while (!stopShoulderThread) {
 			
-			System.out.println("     1(" + shoulder.getTachoCount() + ")");
+			//System.out.println("     1(" + shoulder.getTachoCount() + ")");
 			
 			//smoother more spring like, 7 is a good number, joints start to overcompinsate if higher and won't fully return if lower
 			if (shoulder.getTachoCount() >= 1 || shoulder.getTachoCount() <= 1) {
@@ -588,7 +609,7 @@ public class TestKinematics {
 		
 		while (!stopElbowThread) {
 			
-			System.out.println("          2(" + elbow.getTachoCount() + ")");
+			//System.out.println("          2(" + elbow.getTachoCount() + ")");
 			
 			//smoother more spring like, 7 is a good number, joints start to overcompinsate if higher and won't fully return if lower
 			if (elbow.getTachoCount() >= 1 || elbow.getTachoCount() <= 1) {

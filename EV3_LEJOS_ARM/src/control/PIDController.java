@@ -85,7 +85,7 @@ public class PIDController implements Runnable{
 				Sound.buzz();
 				break;}
 		}
-		m.setPower(0);
+		//m.setPower(5);
 		if (error > 0) {
 			Sound.beepSequence();
 		}
