@@ -1,5 +1,6 @@
 package control;
 
+import lejos.hardware.Button;
 import lejos.hardware.motor.UnregulatedMotor;
 import lejos.hardware.port.MotorPort;
 import lejos.utility.Matrix;
@@ -23,12 +24,12 @@ public class Move {
 	/**
 	 * Singleton Constructor
 	 */
-	private Move() {
+	private Move(UnregulatedMotor[] SERVOS) {
 		// Setup joint motors
-		SERVOS = new UnregulatedMotor[3];
-		SERVOS[0] = new UnregulatedMotor(MotorPort.A);	// Joint 1
-		SERVOS[1] = new UnregulatedMotor(MotorPort.B);	// Joint 2
-		SERVOS[2] = new UnregulatedMotor(MotorPort.C);	// Joint 3
+		Move.SERVOS = SERVOS;
+//		SERVOS[0] = new UnregulatedMotor(MotorPort.A);	// Joint 1
+//		SERVOS[1] = new UnregulatedMotor(MotorPort.B);	// Joint 2
+//		SERVOS[2] = new UnregulatedMotor(MotorPort.C);	// Joint 3
 	}
 	
 	/**
@@ -36,9 +37,9 @@ public class Move {
 	 * 
 	 * @return this Move object
 	 */
-	public static Move getInstance() {
+	public static Move getInstance(UnregulatedMotor[] SERVOS) {
 		if (INSTANCE == null) {
-			INSTANCE = new Move();
+			INSTANCE = new Move(SERVOS);
 		}
 		return INSTANCE;
 	}
@@ -93,5 +94,23 @@ public class Move {
 		JOINT_2.start();
 		JOINT_3.start();
 		if (wait) {while(JOINT_1.isAlive() || JOINT_2.isAlive() || JOINT_3.isAlive()) {}}	// wait for joint movement threads to finish
+	}
+	
+	public static void setOrigin() {
+		Matrix origin_angles = new Matrix(3,1);	// Vector of joint angles in radians	
+		origin_angles.set(1, 0, (-4) * Math.PI);	// theta 2 for J2
+		origin_angles.set(2, 0, Math.PI);		// theta 3 for J3
+		
+		Move.J2(origin_angles, true, 3000);
+		Move.J3(origin_angles, true, 3000);
+
+		Move.SERVOS[0].resetTachoCount();
+		Move.SERVOS[1].resetTachoCount();
+		Move.SERVOS[2].resetTachoCount();
+		
+		//System.out.printf("Origin: J1: %d J2: %d", Move.SERVOS[1].getTachoCount(), Move.SERVOS[2].getTachoCount());
+
+		
+
 	}
 }
