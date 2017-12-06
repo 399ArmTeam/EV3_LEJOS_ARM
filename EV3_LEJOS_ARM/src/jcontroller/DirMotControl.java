@@ -8,7 +8,9 @@ import lejos.hardware.motor.UnregulatedMotor;
 import lejos.hardware.port.MotorPort;
 import lejos.remote.ev3.RemoteEV3;
 import lejos.utility.Delay;
-
+//import Jama.Matrix;
+import lejos.utility.Matrix;
+import control.Move;
 
 public class DirMotControl {
 	public static UnregulatedMotor LR = new UnregulatedMotor(MotorPort.A);
@@ -37,6 +39,8 @@ public class DirMotControl {
     	
     	String[] names = {"Happy", "qwert"};
 	    Brick[] bricks = new Brick[names.length];
+	    Move.getInstance();
+	    
 	    try {
 	    	bricks[0] = BrickFinder.getLocal();
 	        for(int i = 1; i < bricks.length; i++)
@@ -60,19 +64,40 @@ public class DirMotControl {
 		        UnregulatedMotor [] arm_motors = {base, L1, L2};
 		        glcds[1].clear();
 		        
-		        double x_coord = 0;double y_coord = 0;double z_coord = 0;
-		        double[][] eff_coord = {{x_coord}, {y_coord}, {z_coord}};
+		        //Calibrate arm to init position
+		        double[][] eff_coord = {{0}, {0}, {0}};//Change to initial position
+		        double[][] current_pos = {{0},{0},{0}};//change to initial position
+		        double[][] theta = {{0},{0},{0}};// Change to initial theta
+		        
 		        while(Button.ENTER.isUp())
 		        {		        	
-		        	UpdateEffector(eff_coord);
-		        	glcds[1].drawString("End Eff. Coorinates:[x,y,z]",dispwidth / 2,dispheight / 2,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
-		        	glcds[1].drawString(Double.toString(x_coord),dispwidth * 1/4, dispheight* 3/4,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
-		        	glcds[1].drawString(Double.toString(y_coord),dispwidth * 2/4, dispheight* 3/4,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
-		        	glcds[1].drawString(Double.toString(z_coord),dispwidth * 3/4, dispheight* 3/4,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+		        	UpdateEffector(eff_coord);// get new target coordinate
+		        	glcds[1].drawString("Target:[x,y,z]",dispwidth / 2,dispheight / 2,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+		        	glcds[1].drawString(String.format("%.1f", eff_coord[0][0]),dispwidth * 1/4, dispheight* 3/4,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+		        	glcds[1].drawString(String.format("%.1f", eff_coord[1][0]),dispwidth * 2/4, dispheight* 3/4,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+		        	glcds[1].drawString(String.format("%.1f", eff_coord[2][0]),dispwidth * 3/4, dispheight* 3/4,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+		        	
+		        	double error = Math.sqrt(Math.pow(eff_coord[0][0]-current_pos[0][0], 2)+ Math.pow(eff_coord[1][0]-current_pos[1][0], 2) + Math.pow(eff_coord[2][0]-current_pos[2][0], 2));
+		        	
+		        	if(error > 0.05){ // if effector target has moved, perform ik calculations and move
+			        	double[][]d_pos = {{eff_coord[0][0]-current_pos[0][0]},
+			        					   {eff_coord[1][0]-current_pos[1][0]},
+			        					   {eff_coord[2][0]-current_pos[2][0]}};
+			        	
+			        	Matrix T = new Matrix(theta);
+			        	Matrix dP_Matrix = new Matrix(d_pos);
+			        	Matrix invJacobian = new Matrix(JacCalc.getJacobian(theta)).inverse();
+			        	Matrix dT_Matrix = invJacobian.times(dP_Matrix);
+			        	T.plusEquals(dT_Matrix);
+			        	
+			        	theta[0][0] = T.getArray()[0][0]; theta[1][0] = T.getArray()[1][0]; theta[2][0] = T.getArray()[2][0];
+			        	//Move robot here
+			        	Move.J123(dT_Matrix, true);
+			        	UpdatePosition(current_pos, theta);
+		        	}
 		        	
 		        	Delay.msDelay(100);
 		        	glcds[1].clear();
-		        	
 		        	
 		        }
 		        base.close();
@@ -90,20 +115,27 @@ public class DirMotControl {
     	
     }
     
-    //Function to update 
+    //Function to calculate new effector position
+    public static void UpdatePosition(double[][] position, double [][] theta){
+    	position[0][0] = Math.cos(Math.toRadians(theta[0][0]))*(l1* Math.cos(Math.toRadians(theta[1][0])) + l2* Math.cos(Math.toRadians(theta[1][0]+theta[2][0])));
+    	position[1][0] = Math.sin(Math.toRadians(theta[0][0]))*(l1* Math.cos(Math.toRadians(theta[1][0])) + l2* Math.cos(Math.toRadians(theta[1][0]+theta[2][0])));
+    	position[2][0] = l1* Math.sin(Math.toRadians(theta[1][0])) + l2* Math.sin(Math.toRadians(theta[1][0]+theta[2][0]));
+    	
+    }
+    //Function to update target values based on joystick controller
     public static void UpdateEffector(double[][]coord){
     	//double [][] new_coord = {{coord[0][0]},{coord[1][0]},{coord[2][0]}};
     	//Change y-coordinate
-    	if(LR.getTachoCount()<-10||LR.getTachoCount()>10){
-    		coord[1][0] += LR.getTachoCount()*0.1;
+    	if(LR.getTachoCount()<-15||LR.getTachoCount()>15){
+    		coord[1][0] += LR.getTachoCount()*-0.05;
     	}
     	//Change x-coordinate
-    	if(FB.getTachoCount()>10||FB.getTachoCount()<-10){
-    		coord[0][0] += LR.getTachoCount()*0.1;
+    	if(FB.getTachoCount()>15||FB.getTachoCount()<-15){
+    		coord[0][0] += FB.getTachoCount()*-0.05;
     	} 
     	//Change z-coordinate
-    	if(UD.getTachoCount()>10||UD.getTachoCount()<-10){
-    		coord[2][0] =+ LR.getTachoCount()*0.1;
+    	if(UD.getTachoCount()>15||UD.getTachoCount()<-15){
+    		coord[2][0] += UD.getTachoCount()*0.05;
     	}
     	/*
     	if(isInWorkSpace(new_coord)){
@@ -116,8 +148,13 @@ public class DirMotControl {
     
     //Function to validate that the point does not exceed the outer bound of the arm's reach
     public static boolean isInWorkSpace(double[][] point){
-    	
-    	return true;
+    	double norm = Math.sqrt(Math.pow(point[0][0], 2)+ Math.pow(point[1][0], 2) + Math.pow(point[2][0], 2));
+    	double radius = l1 + l2;
+    	if(norm <= radius){
+    		return true;
+    	} else {
+    		return false;
+    	}
     }
     
     
@@ -167,30 +204,30 @@ public class DirMotControl {
 		        	
 		        	glcds[1].clear();
 		        	
-		        	if(LR.getTachoCount()<-10){
+		        	if(LR.getTachoCount()<-15){
 		        		base.setPower((int)((LR.getTachoCount()*1.5) % 100));
 		        		base.backward();
-		        	} else if (LR.getTachoCount()>10){
+		        	} else if (LR.getTachoCount()>15){
 		        		base.setPower((int)((LR.getTachoCount()*1.5) % 100));
 		        		base.backward();
 		        	} else {
 		        		base.stop();
 		        	}
 		        	
-		        	if(FB.getTachoCount()>10){
+		        	if(FB.getTachoCount()>15){
 		        		L1.setPower(Math.abs((int)((FB.getTachoCount()*1.5) % 100)));
 		        		L1.forward();
-		        	} else if (FB.getTachoCount()<-10){
+		        	} else if (FB.getTachoCount()<-15){
 		        		L1.setPower(Math.abs((int)((FB.getTachoCount()*1.5) % 100)));
 		        		L1.backward();
 		        	} else {
 		        		L1.stop();
 		        	}
 		        	
-		        	if(UD.getTachoCount()>10){
+		        	if(UD.getTachoCount()>15){
 		        		L2.setPower(Math.abs((int)((UD.getTachoCount()*1.5) % 100)));
 		        		L2.forward();
-		        	} else if (UD.getTachoCount()<-10){
+		        	} else if (UD.getTachoCount()<-15){
 		        		L2.setPower(Math.abs((int)((UD.getTachoCount()*1.5) % 100)));
 		        		L2.backward();
 		        	} else {

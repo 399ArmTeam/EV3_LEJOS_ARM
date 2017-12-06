@@ -5,10 +5,10 @@ import java.lang.Math;
 //Class for handling 3x3 Jacobian calculations 
 public class JacCalc {
 	public static double base_height = 17.5; //cm
-	public static double l2 = 13.4; //cm
+	public static double l2 = 22.1; //cm
 	public static double l1 = 13.4; //cm
 	
-	public static Matrix getJacobian(double[][] theta){
+	public static double[][] getJacobian(double[][] theta){
 		//pos:3x1, tar:3x1, theta:3x1
 				
 		double dx_dt1 = Math.sin(Math.toRadians(theta[0][0]))*(-1*(l1*Math.cos(Math.toRadians(theta[1][0]))+l2*Math.cos(Math.toRadians(theta[1][0]+theta[2][0]))));
@@ -25,11 +25,8 @@ public class JacCalc {
 							   {dx_dt2,dy_dt2,dz_dt2},
 				  		  	   {dx_dt3,dy_dt3,dz_dt3}}; //3x3 matrix
 		
-		Matrix Jacobian = new Matrix(Jac_vals);
-		return Jacobian;
+		//Matrix Jacobian = new Matrix(Jac_vals);
+		return Jac_vals;
 	}
 	
-	public static Matrix InvJac(Matrix Jacobian){
-		return Jacobian.inverse();
-	}
 }
