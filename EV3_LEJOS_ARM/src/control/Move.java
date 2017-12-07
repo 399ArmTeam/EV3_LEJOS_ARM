@@ -3,7 +3,8 @@ package control;
 import lejos.hardware.Button;
 import lejos.hardware.motor.UnregulatedMotor;
 import lejos.hardware.port.MotorPort;
-import lejos.utility.Matrix;
+//import lejos.utility.Matrix;
+import Jama.Matrix;
 
 /**
  * Move controller singleton class.
@@ -18,8 +19,8 @@ public class Move {
 	
 	// PID CONTROLLER PARAMS
 	// K gain terms for PID control of motors at joints 1, 2, 3
-	private static final double[][] K = {{4, 0.05, 2}, {4, 0.01, 2}, {5, 0.05, 2}};
-	private static final int P[] = {100, 100, 100};	// power maximum for PID control 0 ≤ p ≤ 100
+	private static final double[][] K = {{3, 0, 1}, {3, 0, 1}, {3, 0, 1}};
+	private static final int P[] = {60, 60, 60};	// power maximum for PID control 0 ≤ p ≤ 100
 
 	/**
 	 * Singleton Constructor

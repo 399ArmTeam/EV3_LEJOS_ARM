@@ -8,8 +8,8 @@ import lejos.hardware.motor.UnregulatedMotor;
 import lejos.hardware.port.MotorPort;
 import lejos.remote.ev3.RemoteEV3;
 import lejos.utility.Delay;
-//import Jama.Matrix;
-import lejos.utility.Matrix;
+import Jama.Matrix;
+//import lejos.utility.Matrix;
 
 import java.net.MalformedURLException;
 import java.rmi.NotBoundException;
@@ -29,9 +29,12 @@ public class DirMotControl {
     
     public static double l1 = JacCalc.l1;
     public static double l2 = JacCalc.l2;
+    public static double[] l1_constraint = {0,180};
+    public static double[] l2_constraint = {-270,0};
     public static double base_height = JacCalc.base_height;
     public static double[] offset = {8.5,0, 11.2};
-    
+    public static double[][] ratio_vals = {{2472/360,0,0},{0,122/90,0},{0,0,1}};
+    public static Matrix ratio = new Matrix(ratio_vals);
     public static void main(String[] args) {	
 
     	//DirectControl();
@@ -68,70 +71,45 @@ public class DirMotControl {
 	        FB.resetTachoCount();
 	        UD.resetTachoCount();
 //	        try{
-	        	base = new UnregulatedMotor(bricks[1].getPort("A"));
-		        L1 = new UnregulatedMotor(bricks[1].getPort("B"));
-		        L2 = new UnregulatedMotor(bricks[1].getPort("C"));
-		        
-		        base.resetTachoCount(); L1.resetTachoCount(); L2.resetTachoCount();
-		        
-		        UnregulatedMotor [] arm_motors = {base, L1, L2}; 
-		        Move.getInstance(arm_motors);
-		        Move.setOrigin();
-		        
-		        glcds[1].clear();
-		        
-		        //Calibrate arm to init position
-		        double[][] eff_coord = {{offset[0]}, {offset[1]}, {offset[2]}};//Change to initial position
-		        double[][] current_pos = {{offset[0]}, {offset[1]}, {offset[2]}};//change to initial position
-		        double[][] theta = {{15},{15},{15}};// Change to initial theta
-		        
-		        Matrix dP_Matrix = new Matrix(3,1);
-		        while(Button.ENTER.isUp())
-		        {		        	
-		        	UpdateEffector(eff_coord);// get new target coordinate
-		        	glcds[1].drawString("Target:[x,y,z]",dispwidth / 2,dispheight / 2,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
-		        	
-		        	
-		        	double error = Math.sqrt(Math.pow(eff_coord[0][0]-current_pos[0][0], 2)+ Math.pow(eff_coord[1][0]-current_pos[1][0], 2) + Math.pow(eff_coord[2][0]-current_pos[2][0], 2));
-		        	
-		        	if(error > 0.05){ // if effector target has moved, perform ik calculations and move
-			        	double[][]d_pos = {{eff_coord[0][0]-current_pos[0][0]},
-			        					   {eff_coord[1][0]-current_pos[1][0]},
-			        					   {eff_coord[2][0]-current_pos[2][0]}};
-			        	
-			        	Matrix T = new Matrix(theta);
-			        	dP_Matrix = new Matrix(d_pos);
-			        	Matrix jacobian = new Matrix(JacCalc.getJacobian(theta));
-			        	jacobian.print(System.out);
-			        	Matrix invJacobian = jacobian.inverse();
-			        	Matrix dT_Matrix = invJacobian.times(dP_Matrix);
-			        	T.plusEquals(dT_Matrix);
-			        	
-			        	theta[0][0] = T.getArray()[0][0]; theta[1][0] = T.getArray()[1][0]; theta[2][0] = T.getArray()[2][0];
-			        	
-			        	Move.J1(dT_Matrix, true, 2000);
-			        	UpdatePosition(current_pos, theta);
-			        	
-		       
-		        	}
-		        	glcds[1].drawString(String.format("%.1f", dP_Matrix.getArray()[0][0]),dispwidth * 1/4, dispheight* 3/4,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
-		        	glcds[1].drawString(String.format("%.1f", dP_Matrix.getArray()[1][0]),dispwidth * 2/4, dispheight* 3/4,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
-		        	glcds[1].drawString(String.format("%.1f", dP_Matrix.getArray()[2][0]),dispwidth * 3/4, dispheight* 3/4,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
-		        	
-		        	Delay.msDelay(1000);
-		        	glcds[1].clear();
-		        	
-		        }
-//	        } 
-//	        catch(Exception e){
-//	        	System.out.println(e.getMessage());
-//	        	
-//	        }
-//	        finally{
-//	    		base.close();
-//		        L1.close();
-//		        L2.close();  
-//	    	}
+//	        base = new UnregulatedMotor(bricks[1].getPort("A"));
+//	        L1 = new UnregulatedMotor(bricks[1].getPort("B"));
+//	        L2 = new UnregulatedMotor(bricks[1].getPort("C"));
+//
+//	        base.resetTachoCount(); L1.resetTachoCount(); L2.resetTachoCount();
+//
+//	        UnregulatedMotor [] arm_motors = {base, L1, L2}; 
+//	        Move.getInstance(arm_motors);
+//	        Move.setOrigin();
+	        
+	        glcds[1].clear();
+	        
+	        //Calibrate arm to init position
+	        double[][] eff_coord = {{offset[0]}, {offset[1]}, {offset[2]}};//Change to initial position
+	        double[][] current_pos = {{offset[0]}, {offset[1]}, {offset[2]}};//change to initial position
+	        double[][] theta = {{0},{-45},{135}};// Change to initial theta
+	        Matrix dT = new Matrix(3,1);
+	       
+	        while(Button.ENTER.isUp())
+	        {		        	
+	        	UpdateEffector(eff_coord);// get new target coordinate
+	        	glcds[1].drawString("Target:[x,y,z]",dispwidth / 2,dispheight / 2,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+	        	//double error = Math.sqrt(Math.pow(eff_coord[0][0]-current_pos[0][0], 2)+ Math.pow(eff_coord[1][0]-current_pos[1][0], 2) + Math.pow(eff_coord[2][0]-current_pos[2][0], 2));
+	        	
+	        	dT = ratio.times(CalculateAngle(eff_coord, current_pos, theta));
+	        	//Move.J123(dT.times(Math.PI/180), true, 2000);
+	        	glcds[1].drawString(String.format("%.1f", eff_coord[0][0]),dispwidth * 1/4, dispheight* 3/4,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+	        	glcds[1].drawString(String.format("%.1f", eff_coord[1][0]),dispwidth * 2/4, dispheight* 3/4,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+	        	glcds[1].drawString(String.format("%.1f", eff_coord[2][0]),dispwidth * 3/4, dispheight* 3/4,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+	        	
+	        	glcds[1].drawString(String.format("%.1f", theta[0][0]),dispwidth * 1/4, dispheight,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+	        	glcds[1].drawString(String.format("%.1f", theta[1][0]),dispwidth * 2/4, dispheight,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+	        	glcds[1].drawString(String.format("%.1f", theta[2][0]),dispwidth * 3/4, dispheight,GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+	        	
+	        	Delay.msDelay(100);
+	        	glcds[1].clear();
+	        	
+	        }
+
 	    }
 	    catch (RemoteException e)
 	    {
@@ -148,21 +126,71 @@ public class DirMotControl {
 	    catch(Exception e){
 	        System.out.println("Got exception " + e);
 	    }
-
-        finally {
-    		base.close();
-	        L1.close();
-	        L2.close();  
-        }
+//	    finally {
+//	    	base.close();
+//	    	L1.close();
+//	    	L2.close();  
+//	    }
     	
     }
     
-    public static double[][] CalculateAngle(){
-    	double[][] new_theta = {{0},{0},{0}};
+    public static Matrix CalculateAngle(double[][] eff_coord, double[][]current_pos, double[][] theta){
+    	Matrix dT_Matrix = new Matrix(3,1);
+    	double[] start_angles = {0, 0, 0};
+    	start_angles[0] = theta[0][0];start_angles[1] = theta[1][0];start_angles[2] = theta[2][0];
     	
-    	return new_theta;
+    	Matrix dT_return = new Matrix(3,1);
+    	
+    	double error = Math.sqrt(Math.pow(eff_coord[0][0]-current_pos[0][0], 2)+ Math.pow(eff_coord[1][0]-current_pos[1][0], 2) + Math.pow(eff_coord[2][0]-current_pos[2][0], 2));
+    	
+    	Matrix jacobian =  JacCalc.getJacobian(theta);
+    	//jacobian.print(System.out);
+    	Matrix invJacobian = jacobian.inverse();
+    	
+    	for(int i=0;i<200;i++){ // if effector target has moved, perform ik calculations and move
+    		if(error > 0.05){
+	    		double[][]d_pos = {{eff_coord[0][0]-current_pos[0][0]},
+				   		   		   {eff_coord[1][0]-current_pos[1][0]},
+				                   {eff_coord[2][0]-current_pos[2][0]}};
+	    		Matrix dP_Matrix = new Matrix(d_pos);
+	    		dT_Matrix = invJacobian.times(dP_Matrix);
+	        	
+	    		Matrix T = new Matrix(theta);
+	    		//System.out.printf("%.1f %.1f %.1f\n",dT_Matrix.getArray()[0][0],dT_Matrix.getArray()[1][0],dT_Matrix.getArray()[2][0]);
+	        	T.plusEquals(dT_Matrix);
+	        	theta[0][0] = T.getArray()[0][0]; theta[1][0] = T.getArray()[1][0]; theta[2][0] = T.getArray()[2][0];
+	        	UpdatePosition(current_pos, theta);
+	        	error = Math.sqrt(Math.pow(eff_coord[0][0]-current_pos[0][0], 2)+ Math.pow(eff_coord[1][0]-current_pos[1][0], 2) + Math.pow(eff_coord[2][0]-current_pos[2][0], 2));
+	        	//System.out.printf("%.2f", error);
+    		}
+    	}
+    	dT_return.set(0, 0, (theta[0][0]-start_angles[0])%360);
+    	dT_return.set(1, 0, (theta[1][0]-start_angles[1])%360);
+    	dT_return.set(2, 0, (theta[2][0]-start_angles[2])%360);
+    	//System.out.printf("%.1f %.1f %.1f\n",dT_return.getArray()[0][0],dT_return.getArray()[1][0],dT_return.getArray()[2][0]);
+    	System.out.printf("%.1f %.1f %.1f\n %.1f %.1f %.1f\n %.1f %.1f %.1f\n",
+    			jacobian.getArray()[0][0],jacobian.getArray()[0][1],jacobian.getArray()[0][2],
+    			jacobian.getArray()[1][0],jacobian.getArray()[1][1],jacobian.getArray()[1][2],
+    			jacobian.getArray()[2][0],jacobian.getArray()[2][1],jacobian.getArray()[2][2]);
+    	return dT_return;
     }
     
+    public static void angleInWorkSpace(double[][] theta, double[][]eff_coord, double[][] current_pos){
+    	if(theta[1][0]<l1_constraint[0]){
+    		theta[1][0] = l1_constraint[0];
+    	}else if(theta[1][0]>l1_constraint[1]){
+    		theta[1][0] = l1_constraint[1];
+    	}
+    	if(theta[2][0]<l2_constraint[0]){
+    		theta[2][0] = l2_constraint[0];
+    	}else if(theta[2][0]>l2_constraint[1]){
+    		theta[2][0] = l2_constraint[1];
+    	}
+    	UpdatePosition(current_pos,theta);
+    	double error = Math.sqrt(Math.pow(eff_coord[0][0]-current_pos[0][0], 2)+ Math.pow(eff_coord[1][0]-current_pos[1][0], 2) + Math.pow(eff_coord[2][0]-current_pos[2][0], 2));
+    	//CCD adjustments	
+    	
+    }
     //Function to calculate new effector position
     public static void UpdatePosition(double[][] position, double [][] theta){
     	position[0][0] = Math.cos(Math.toRadians(theta[0][0]))*(l1* Math.cos(Math.toRadians(theta[1][0])) + l2* Math.cos(Math.toRadians(theta[1][0]+theta[2][0])));
@@ -191,17 +219,31 @@ public class DirMotControl {
     	} else {
     		return coord;
     	}*/
-    	
+    	coord = isInWorkSpace(coord);
+    	System.out.printf("%.1f %.1f %.1f\n",coord[0][0],coord[1][0],coord[2][0]);
     }
     
+    
+    
     //Function to validate that the point does not exceed the outer bound of the arm's reach
-    public static boolean isInWorkSpace(double[][] point){
+    public static double[][] isInWorkSpace(double[][] point){
     	double norm = Math.sqrt(Math.pow(point[0][0], 2)+ Math.pow(point[1][0], 2) + Math.pow(point[2][0], 2));
-    	double radius = l1 + l2;
-    	if(norm <= radius){
-    		return true;
+    	double outer_radius = l1 + l2;// arm full extension
+    	double inner_radius = Math.sqrt(Math.pow(offset[0], 2)+ Math.pow(offset[1], 2) + Math.pow(offset[2], 2)); //offset at initial
+    	if(norm > outer_radius){
+    		//find projection of point along outer bound
+    		point[0][0] = point[0][0]*(outer_radius/norm);
+    		point[1][0] = point[1][0]*(outer_radius/norm);
+    		point[2][0] = point[2][0]*(outer_radius/norm);
+    		return point;
+    	} else if(norm <= inner_radius){
+    		//find projection of point along inner bound
+    		point[0][0] = point[0][0]*(inner_radius/norm);
+    		point[1][0] = point[1][0]*(inner_radius/norm);
+    		point[2][0] = point[2][0]*(inner_radius/norm);
+    		return point;
     	} else {
-    		return false;
+    		return point;
     	}
     }
     
