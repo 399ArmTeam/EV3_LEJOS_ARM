@@ -45,23 +45,23 @@ public class TestKinematics {
         }
     };
     
-    public static Runnable balanceBaseThread = new Runnable() {
-        public void run() {
-            balanceBase();
-        }
-    };
-    
-    public static Runnable balanceShoulderThread = new Runnable() {
-        public void run() {
-            balanceShoulder();
-        }
-    };
-    
-    public static Runnable balanceElbowThread = new Runnable() {
-        public void run() {
-            balanceElbow();
-        }
-    };
+//    public static Runnable balanceBaseThread = new Runnable() {
+//        public void run() {
+//            balanceBase();
+//        }
+//    };
+//    
+//    public static Runnable balanceShoulderThread = new Runnable() {
+//        public void run() {
+//            balanceShoulder();
+//        }
+//    };
+//    
+//    public static Runnable balanceElbowThread = new Runnable() {
+//        public void run() {
+//            balanceElbow();
+//        }
+//    };
 
 	public static void main(String args[]){
 		base.resetTachoCount();
@@ -524,83 +524,83 @@ public class TestKinematics {
 		return;
 	}
 	
-	public static void balanceBase() {
-		base.resetTachoCount();
-		
-		base.forward();
-		
-		int powerMultiplier = -3;
-		
-		stopBaseThread = false;
-		
-		while (!stopBaseThread) {
-			
-			System.out.println("0(" + base.getTachoCount() + ")");
-			
-			//smoother more spring like, 7 is a good number, joints start to overcompinsate if higher and won't fully return if lower
-			if (base.getTachoCount() >= 1 || base.getTachoCount() <= 1) {
-				base.setPower(base.getTachoCount() * powerMultiplier);
-			} else if (base.getTachoCount() >= 0) {
-				base.setPower(-5);
-			} else {
-				base.setPower(5);
-			}
-		}
-		
-		return;
-	}
-	
-	public static void balanceShoulder() {
-		shoulder.resetTachoCount();
-		
-		shoulder.forward();
-		
-		int powerMultiplier = -6;
-		
-		stopShoulderThread = false;
-		
-		while (!stopShoulderThread) {
-			
-			System.out.println("     1(" + shoulder.getTachoCount() + ")");
-			
-			//smoother more spring like, 7 is a good number, joints start to overcompinsate if higher and won't fully return if lower
-			if (shoulder.getTachoCount() >= 1 || shoulder.getTachoCount() <= 1) {
-				shoulder.setPower(shoulder.getTachoCount() * powerMultiplier);
-			} else if (shoulder.getTachoCount() >= 0) {
-				shoulder.setPower(-5);
-			} else {
-				shoulder.setPower(5);
-			}
-			
-		}
-		
-		return;
-	}
-	
-	public static void balanceElbow() {
-		elbow.resetTachoCount();
-		
-		elbow.forward();
-		
-		int powerMultiplier = -6;
-		
-		stopElbowThread = false;
-		
-		while (!stopElbowThread) {
-			
-			System.out.println("          2(" + elbow.getTachoCount() + ")");
-			
-			//smoother more spring like, 7 is a good number, joints start to overcompinsate if higher and won't fully return if lower
-			if (elbow.getTachoCount() >= 1 || elbow.getTachoCount() <= 1) {
-				elbow.setPower(elbow.getTachoCount() * powerMultiplier);
-			} else if (elbow.getTachoCount() >= 0) {
-				elbow.setPower(-5);
-			} else {
-				elbow.setPower(5);
-			}
-			
-		}
-		
-		return;
-	}
+//	public static void balanceBase() {
+//		base.resetTachoCount();
+//		
+//		base.forward();
+//		
+//		int powerMultiplier = -3;
+//		
+//		stopBaseThread = false;
+//		
+//		while (!stopBaseThread) {
+//			
+//			System.out.println("0(" + base.getTachoCount() + ")");
+//			
+//			//smoother more spring like, 7 is a good number, joints start to overcompinsate if higher and won't fully return if lower
+//			if (base.getTachoCount() >= 1 || base.getTachoCount() <= 1) {
+//				base.setPower(base.getTachoCount() * powerMultiplier);
+//			} else if (base.getTachoCount() >= 0) {
+//				base.setPower(-5);
+//			} else {
+//				base.setPower(5);
+//			}
+//		}
+//		
+//		return;
+//	}
+//	
+//	public static void balanceShoulder() {
+//		shoulder.resetTachoCount();
+//		
+//		shoulder.forward();
+//		
+//		int powerMultiplier = -6;
+//		
+//		stopShoulderThread = false;
+//		
+//		while (!stopShoulderThread) {
+//			
+//			System.out.println("     1(" + shoulder.getTachoCount() + ")");
+//			
+//			//smoother more spring like, 7 is a good number, joints start to overcompinsate if higher and won't fully return if lower
+//			if (shoulder.getTachoCount() >= 1 || shoulder.getTachoCount() <= 1) {
+//				shoulder.setPower(shoulder.getTachoCount() * powerMultiplier);
+//			} else if (shoulder.getTachoCount() >= 0) {
+//				shoulder.setPower(-5);
+//			} else {
+//				shoulder.setPower(5);
+//			}
+//			
+//		}
+//		
+//		return;
+//	}
+//	
+//	public static void balanceElbow() {
+//		elbow.resetTachoCount();
+//		
+//		elbow.forward();
+//		
+//		int powerMultiplier = -6;
+//		
+//		stopElbowThread = false;
+//		
+//		while (!stopElbowThread) {
+//			
+//			System.out.println("          2(" + elbow.getTachoCount() + ")");
+//			
+//			//smoother more spring like, 7 is a good number, joints start to overcompinsate if higher and won't fully return if lower
+//			if (elbow.getTachoCount() >= 1 || elbow.getTachoCount() <= 1) {
+//				elbow.setPower(elbow.getTachoCount() * powerMultiplier);
+//			} else if (elbow.getTachoCount() >= 0) {
+//				elbow.setPower(-5);
+//			} else {
+//				elbow.setPower(5);
+//			}
+//			
+//		}
+//		
+//		return;
+//	}
 }
