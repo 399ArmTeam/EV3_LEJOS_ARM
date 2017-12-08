@@ -89,7 +89,7 @@ public class PIDController implements Runnable{
 		if (error > 0) {
 			Sound.beepSequence();
 		}
-//		System.out.print("E: " + error + "\n\n");
+		System.out.print("E: " + error + "\n\n");
 	}
 	
 	/**

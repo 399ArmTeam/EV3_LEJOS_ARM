@@ -6,8 +6,10 @@ import lejos.hardware.Sound;
 import lejos.hardware.motor.UnregulatedMotor;
 import lejos.hardware.port.MotorPort;
 import lejos.utility.Delay;
-import lejos.utility.Matrix;
+//import lejos.utility.Matrix;
 import vision.TrackerReader;
+import vision.TrackerReader2;
+import Jama.Matrix;
 
 
 public class TestKinematics {
@@ -25,13 +27,13 @@ public class TestKinematics {
 	private static UnregulatedMotor[] MOTOR;
 	
 	// PID CONTROLLER
-	private static final double[][] K = {{5, 0, 1}, {4.0, 0, 1}, {3, 0, 1}};	// K gain terms for PID control of motors at joints 1 and 2
-	private static final int P[] = {40, 80, 80};						// power maximum for PID control 0 ≤ p ≤ 100
+	private static final double[][] K = {{4.0, 0, 1.0}, {4.0, 0.01, 1.5}, {2, 0, 1}};	// K gain terms for PID control of motors at joints 1 and 2
+	private static final int P[] = {45, 70, 50};						// power maximum for PID control 0 ≤ p ≤ 100
 	private static final int TIMEOUT = 3000;						// kill PID if SP not reached within this many milliseconds
 	
 	// CV TRACKER READER
 	private static TrackerReader tracker;
-	private static TrackerReader tracker2;
+	private static TrackerReader2 tracker2;
 
 	// DATA MATRICES
 	private static Matrix del_e = new Matrix(4,1);		
@@ -78,26 +80,32 @@ public class TestKinematics {
 		Delay.msDelay(1000);
 		
 		del_q.set(0, 0, Math.PI * 2); //base
-        del_q.set(1, 0, -Math.PI * 1.4); //shoulder
+        del_q.set(1, 0, -Math.PI / 2); //shoulder
         del_q.set(2, 0, -Math.PI /2); //elbow
         
         new Thread(balanceAllThread).start();
         
+        /*
         //moveJ1();
         Delay.msDelay(1000);
         moveJ2();
         Delay.msDelay(1000);
         moveJ3();
         Delay.msDelay(1000);
+        */
 		
         //System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
 		//Button.waitForAnyPress();
+        
+        //Button.waitForAnyPress();
 		
 		tracker = new TrackerReader();
 		tracker.start();
 		
-		tracker2 = new TrackerReader();							// visual servoing tracker client
-        //tracker2.start();
+		//Button.waitForAnyPress();
+		
+		tracker2 = new TrackerReader2();							// visual servoing tracker client
+        tracker2.start();
 		
 		//start self balancing thread
 		new Thread(balanceAllThread).start();
@@ -134,25 +142,27 @@ public class TestKinematics {
        			
         // MOVE J1
 		moveJ1();
-        del_e = getTrackerData().minus(del_e);
+		del_e = getTrackerData().minus(del_e);
         
 		// Calcualte first col of Jacobian
-		JTest.setMatrix(0, 1, 0, 0, mtrxDiv(del_e, del_q.get(0, 0)));
+		JTest.setMatrix(0, 3, 0, 0, mtrxDiv(del_e, del_q.get(0, 0)));
 	
         // MOVE J2
 		moveJ2();
-        del_e = getTrackerData().minus(del_e);
+		del_e = getTrackerData().minus(del_e);
 		
 		// Calcualte second col of Jacobian
-		JTest.setMatrix(0, 1, 1, 1, mtrxDiv(del_e, del_q.get(1, 0)));
+		JTest.setMatrix(0, 3, 1, 1, mtrxDiv(del_e, del_q.get(1, 0)));
 		
 		// MOVE J2
 		moveJ3();
+        
 		del_e = getTrackerData().minus(del_e);
 		
 		// Calcualte third col of Jacobian
-		JTest.setMatrix(0, 1, 2, 2, mtrxDiv(del_e, del_q.get(2, 0)));
+		JTest.setMatrix(0, 3, 2, 2, mtrxDiv(del_e, del_q.get(2, 0)));
 		
+		/*
 		JTest.set(2, 0, 1);
 		JTest.set(3, 0, 1);
 		
@@ -161,6 +171,7 @@ public class TestKinematics {
 		
 		JTest.set(2, 2, 1);
 		JTest.set(3, 2, 1);
+		*/
 		
 
 		// Follow Target
@@ -200,7 +211,7 @@ public class TestKinematics {
 		
 		stopAllMotors();
 		
-		System.out.println("-----------------------------------------------------------------------------------------------------");
+		//System.out.println("-----------------------------------------------------------------------------------------------------");
 		
 		new Thread(balanceAllThread).start();
 	}
@@ -212,7 +223,7 @@ public class TestKinematics {
 		if ( del_q.get(1, 0) < 0) {
 			K[1][0] = 0.5;
 		} else {
-			K[1][0] = 3;
+			K[1][0] = 4;
 		}
  		Thread JOINT_2 = new Thread(new PIDController(MOTOR[1], (int) Math.toDegrees(del_q.get(1, 0)), K[1], P[1], TIMEOUT));
 		
@@ -236,7 +247,7 @@ public class TestKinematics {
 		
 		stopAllMotors();
 		
-		System.out.println("-----------------------------------------------------------------------------------------------------");
+		//System.out.println("-----------------------------------------------------------------------------------------------------");
 		
 		new Thread(balanceAllThread).start();
 	}
@@ -245,7 +256,7 @@ public class TestKinematics {
 		if ( del_q.get(2, 0) < 0) {
 			K[2][0] = 0.5;
 		} else {
-			K[2][0] = 4;
+			K[2][0] = 2;
 		}
  		Thread JOINT_3 = new Thread(new PIDController(MOTOR[2], (int) Math.toDegrees(del_q.get(2, 0)), K[2], P[2], TIMEOUT));
 		
@@ -269,7 +280,7 @@ public class TestKinematics {
 		
 		stopAllMotors();
 		
-		System.out.println("-----------------------------------------------------------------------------------------------------");
+		//System.out.println("-----------------------------------------------------------------------------------------------------");
 		
 		new Thread(balanceAllThread).start();
 	}
@@ -314,7 +325,7 @@ public class TestKinematics {
 		if ( del_q.get(2, 0) < 0) {
 			K[2][0] = 0.5;
 		} else {
-			K[2][0] = 3;
+			K[2][0] = 2;
 		}
 		if ( del_q.get(1, 0) < 0) {
 			K[1][0] = 1.5;
@@ -352,7 +363,7 @@ public class TestKinematics {
 		
 		stopAllMotors();
 		
-		System.out.println("-----------------------------------------------------------------------------------------------------");
+		//System.out.println("-----------------------------------------------------------------------------------------------------");
 		
 		new Thread(balanceAllThread).start();
 	}
@@ -374,13 +385,15 @@ public class TestKinematics {
 		final double alpha = 0.8;
 		final double epsilon = 5;
 		final double threshold = 10;
-		final double step_i = 5;
+		final double step_i = 3;
 		double step = step_i;
 		Matrix Fx = new Matrix(4,1);
+		Matrix temp = new Matrix(4,1);
 		Matrix target = new Matrix(4,1);
 		Matrix target_new = new Matrix(4,1);
 		Matrix numerator = new Matrix(4,1);
 		double denominator = 1;
+        
 		Fx = getTrackerData();
 
 		do {
@@ -392,6 +405,8 @@ public class TestKinematics {
 			}
 			target = target_new;
 
+			//target.print(System.out);
+			
 			// (un)comment to solve by way points
 			/*
 			System.out.print(JTest.getRowDimension());
@@ -402,16 +417,29 @@ public class TestKinematics {
 			System.out.print(" ");
 			*/
 			//Button.waitForAnyPress();
-			//del_q = JTest.solve(mtrxDiv(target.minus(Fx), step));
-			del_q = JTest.inverse().times(mtrxDiv(target.minus(Fx), step));
-			
-			del_q = del_q.getMatrix(0, 2, 0, 0);
+			del_q = JTest.solve(mtrxDiv(target.minus(Fx), step));
+			//del_q = JTest.inverse().times(mtrxDiv(target.minus(Fx), step));
+			//del_q.print(System.out);
+			System.out.println(del_q.get(0, 0));
+			System.out.println(del_q.get(1, 0));
+			System.out.println(del_q.get(2, 0));
+			//System.out.println(del_q.get(3, 0));
+			//Button.waitForAnyPress();
+			//del_q = del_q.getMatrix(0, 2, 0, 0);
+			//del_q.print(System.out);
+			//Button.waitForAnyPress();
 
 //					// (un)comment to solve by dyamic tracking
 //					del_q = J.solve(target.minus(Fx));
 			
 			//moveJ1J2();
+			
+			//del_q = del_q.times(-1.0);
+			
 			moveJ1J2J3();
+			
+			//del_q = del_q.times(-1.0);
+			
 	        del_e = getTrackerData().minus(Fx);
 	        
 	        /*
@@ -445,7 +473,7 @@ public class TestKinematics {
 			
      		denominator = del_q.transpose().times(del_q).get(0, 0);
         		JTest = JTest.plus(mtrxDiv(numerator, denominator).times(alpha));
-        		
+                
     			Fx = getTrackerData();  			
 			step--;
 
@@ -482,20 +510,24 @@ public class TestKinematics {
 	 */
 	private static Matrix getTrackerData() {
 		Matrix M = new Matrix(4,1);
-		Delay.msDelay(2500);
+		Delay.msDelay(1500);
 	    	try {
 	    		Thread.sleep(500);
 	    			double u = tracker.x;
 	    			double v = tracker.y;
 //			    			System.out.printf("\nGOT TRACKER DATA\nU: %.1f V: %.1f\n\n", u, v);
 	    			M.set(0, 0, u);
-				M.set(1, 0, v);
+	    			M.set(1, 0, v);
+	    			
+	    			double x = tracker2.x;
+	    			double y = tracker2.y;
+//			    			System.out.printf("\nGOT TRACKER DATA\nU: %.1f V: %.1f\n\n", u, v);
+	    			M.set(2, 0, x);
+	    			M.set(3, 0, y);
 	    	} catch (InterruptedException ex) {
 	    		Thread.currentThread().interrupt();
 	    	}
 	    	
-	    	M.set(2, 0, 1);
-	    	M.set(3, 0, 1);
 	    	return M;
 	}
 	
@@ -510,15 +542,17 @@ public class TestKinematics {
 	    		Thread.sleep(500);
     				double u = tracker.targetx;
     				double v = tracker.targety;
+    				double y = tracker2.targetx;
+    				double z = tracker2.targety;
 //			    			System.out.printf("\nGOT TARGET DATA:\nU: %.1f V: %.1f\n\n", u, v);
 	    			M.set(0, 0, u);
-				M.set(1, 0, v);
+	    			M.set(1, 0, v);
+	    			M.set(2, 0, y);
+	    			M.set(3, 0, z);
 	    	} catch (InterruptedException ex) {
 	    		Thread.currentThread().interrupt();
 	    	}
 	    	
-	    	M.set(2, 0, 1);
-	    	M.set(3, 0, 1);
 	    	return M;
 	}
 	

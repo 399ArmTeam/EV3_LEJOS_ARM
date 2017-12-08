@@ -8,7 +8,7 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-public class TrackerReader extends Thread
+public class TrackerReader2 extends Thread
 {
     public volatile double x;
     public volatile double y;
@@ -30,7 +30,7 @@ public class TrackerReader extends Thread
         try
         {
             //1. creating a server socket - 1st parameter is port number and 2nd is the backlog
-            s = new ServerSocket(5000 , 10);
+            s = new ServerSocket(5001 , 10);
 
             //2. Wait for an incoming connection
             System.out.println("Server socket created.Waiting for connection...");
@@ -79,16 +79,15 @@ public class TrackerReader extends Thread
         {
             System.err.println("IOException");
         }
-        /*
+
         try
         {
-            //s.close();
+            s.close();
         }
         catch(IOException ioException)
         {
             System.err.println("Unable to close. IOexception");
         }
-        */
     }
     
     public double[] getCurrentXY() {
